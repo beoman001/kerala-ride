@@ -5,7 +5,7 @@ from flask_login import LoginManager
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
 
-# 1. Initialize extensions right at the top level
+# 1. Initialize extensions globally at the root package level
 db = SQLAlchemy()
 socketio = SocketIO(cors_allowed_origins="*", async_mode='threading')
 login_manager = LoginManager()
@@ -13,15 +13,18 @@ login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Please log in to access this page.'
 login_manager.login_message_category = 'warning'
 
+
 @login_manager.user_loader
 def load_user(user_id):
-    # Import inside function to prevent early database binding loops
+    # LAZY IMPORT: Prevents models from executing until the app context is fully built
     from kerala_ride.models import User
     return db.session.get(User, int(user_id))
+
 
 def now_utc():
     """Helper method to return timezone-naive UTC datetime safely for SQLite."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
 
 def create_app(test_config=None):
     """Application factory function to configure and initialize the Flask application."""
@@ -43,13 +46,14 @@ def create_app(test_config=None):
     # Ensure upload directory exists
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-    # 3. Bind extensions to the application instance context
+    # 3. Bind core extension layers to the application instance context
     db.init_app(app)
     login_manager.init_app(app)
     socketio.init_app(app)
 
     # Automatically build missing database tables safely inside application context
     with app.app_context():
+        from kerala_ride import models  # Forces SQLAlchemy to scan models cleanly
         db.create_all()
 
     # --- SECURITY: Force session to use the strict 30-min timeout timer ---
@@ -179,7 +183,7 @@ def seed_database(app):
         )
         db.session.add(vehicle1)
 
-        # 4. Seed Pending Partner Driver 2 (Taxi/Dzire)
+        # 4. Seed Pending Partner Driver 2 (Taxi)
         driver2_user = User(email="driver2@keralaride.com", name="Mohan Lal", phone="9845612345", role="driver")
         driver2_user.set_password("driver123")
         db.session.add(driver2_user)
@@ -210,7 +214,7 @@ def seed_database(app):
         )
         db.session.add(vehicle2)
 
-        # 5. Seed Core Base Fare Configurations matching your master lists
+        # 5. Seed Core Base Fare Configurations matching master list types
         config_auto = FareConfig(vehicle_category="Auto Rickshaw", base_fare=40.0, base_distance_km=1.5, rate_per_km=12.0)
         config_taxi = FareConfig(vehicle_category="Taxi", base_fare=60.0, base_distance_km=3.0, rate_per_km=15.0)
         config_suv = FareConfig(vehicle_category="8-Seater SUV", base_fare=100.0, base_distance_km=5.0, rate_per_km=22.0)
