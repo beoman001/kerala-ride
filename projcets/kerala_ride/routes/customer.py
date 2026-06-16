@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for, flash
 from flask_login import login_required, current_user
 from kerala_ride import db
-from kerala_ride.models import Booking, SavedLocation, FareConfig  # Adjust models path if yours is different
+from kerala_ride.models import Booking, SavedLocation, FareConfig # Adjust models path if yours is different
 
 # Attempt imports for optional components; fallbacks handle missing tables gracefully
 try:
@@ -29,7 +29,7 @@ def book():
         vehicle_category = request.form.get('vehicle_category')
         payment_method = request.form.get('payment_method')
         promo_code = request.form.get('promo_code', '').strip().upper()
-
+        
         # Capture the dynamically calculated fare from the hidden input field
         estimated_fare = request.form.get('estimated_fare', 0.0)
 
@@ -79,7 +79,7 @@ def book():
 
 
 # ==========================================
-# 2. FREE OPENSTREETMAP FARE ESTIMATOR + EXPLICIT RETURN CHARGE
+# 2. FREE OPENSTREETMAP FARE ESTIMATOR + DYNAMIC RETURN THRESHOLD
 # ==========================================
 @customer_bp.route('/estimate-fare', methods=['POST'])
 @login_required
@@ -100,7 +100,7 @@ def estimate_fare():
     try:
         pickup_parts = pickup.split(',')
         dest_parts = destination.split(',')
-
+        
         if len(pickup_parts) != 2 or len(dest_parts) != 2:
             return jsonify({
                 "success": False,
@@ -120,8 +120,7 @@ def estimate_fare():
             distance_km = round(distance_meters / 1000.0, 1)
             route_geometry = res_data['routes'][0]['geometry']
         else:
-            return jsonify(
-                {"success": False, "error": "Could not map a driving route layout between those selected points."}), 400
+            return jsonify({"success": False, "error": "Could not map a driving route layout between those selected points."}), 400
 
     except Exception as e:
         print(f"OSRM Routing Server Failure: {e}")
@@ -142,15 +141,15 @@ def estimate_fare():
         print(f"Database check caught an exception, relying on application presets: {db_err}")
 
     # ==========================================
-    # STEP-BY-STEP FARE COMPUTATION (DEADLINE FIX)
+    # STEP-BY-STEP FARE COMPUTATION (MINIMUM KM FIX)
     # ==========================================
     print(f"\n--- DEBUG: NEW FARE CALCULATION ---")
     print(f"Calculated Road Distance: {distance_km} km")
-
+    
     is_outstation = False
     return_charge = 0.0
     forward_fare = 0.0
-
+    
     # 1. THE GOING CHARGE IS ALWAYS NORMAL (Base Fare + Extra KM)
     if distance_km <= base_distance:
         forward_fare = base_fare
@@ -158,16 +157,23 @@ def estimate_fare():
         billable_extra_km = distance_km - base_distance
         forward_fare = base_fare + (billable_extra_km * rate_per_km)
 
-    # 2. CALCULATE THE RETURN CHARGE BASED ON THE 500KM RULE
+    # 2. CALCULATE THE RETURN CHARGE WITH A MINIMUM DISTANCE THRESHOLD
+    # Adjust this value to set the minimum distance required to trigger a return fee
+    MIN_KM_FOR_RETURN = 15.0 
+
     if distance_km > 500.0:
         is_outstation = True
         print("RESULT: Outstation Rule Triggered (>500km)!")
         # Above 500km: Return case ONLY uses the flat rate per km. No base fare added.
         return_charge = distance_km * rate_per_km
-    else:
-        print("RESULT: Local/Standard Return Rule Triggered (<=500km)")
-        # Under 500km: Return charge exactly matches the normal going charge (x2 total)
+    elif distance_km > MIN_KM_FOR_RETURN:
+        print(f"RESULT: Return Rule Triggered (Between {MIN_KM_FOR_RETURN}km and 500km)")
+        # If it's a long trip but below outstation tier, the return charge matches the going charge
         return_charge = forward_fare
+    else:
+        print(f"RESULT: Ultra-Short Local Trip (≤ {MIN_KM_FOR_RETURN}km). NO return charge added.")
+        # Under the minimum km threshold? Return charge stays exactly 0.0!
+        return_charge = 0.0
 
     # 3. COMBINE FOR TOTAL ESTIMATE
     final_fare = forward_fare + return_charge
@@ -181,7 +187,7 @@ def estimate_fare():
         final_fare -= discount
 
     final_fare = max(0.0, round(final_fare, 2))
-
+    
     print(f"Forward Fare: {forward_fare} | Return Charge: {return_charge} | Total Fare: {final_fare}")
     print(f"Final Fare Sent to Browser: ₹{final_fare}")
     print(f"-----------------------------------\n")
@@ -290,7 +296,7 @@ def add_contact():
 @login_required
 def cancel_ride(booking_id):
     booking = Booking.query.get_or_404(booking_id)
-
+    
     # Security check
     if booking.user_id != current_user.id:
         flash("Unauthorized action.", "danger")
@@ -304,15 +310,15 @@ def cancel_ride(booking_id):
     try:
         minutes_passed = (datetime.utcnow() - booking.created_at).total_seconds() / 60.0
     except Exception:
-        minutes_passed = 0  # Fallback if database lacks created_at timestamp
+        minutes_passed = 0 # Fallback if database lacks created_at timestamp
 
     message = "Your ride has been cancelled successfully."
-
+    
     # Check the 15-minute rule
     if minutes_passed > 15.0:
         # Calculate 1/4th (25%) of the total estimated fare
         penalty = round(float(booking.estimated_fare) * 0.25, 2)
-
+        
         # Mark as cancelled with penalty string
         booking.status = f"Cancelled (Penalty: ₹{penalty})"
         message = f"Ride cancelled. Since 15 minutes passed, a 1/4 penalty charge (₹{penalty}) will be added to your account for the driver's wasted time."
