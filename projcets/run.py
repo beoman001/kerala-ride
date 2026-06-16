@@ -7,7 +7,11 @@ if __name__ == '__main__':
     # Seed database automatically on launch for a seamless out-of-the-box demo
     seed_database(app)
 
-    # Run Flask-SocketIO server
-    # Note: socketio.run handles the web server and supports real-time notifications
-    print("KeralaRide Connect starting on http://0.0.0.0:5000")
-    socketio.run(app, host='0.0.0.0', port=5001, debug=True, allow_unsafe_werkzeug=True)
+    # DYNAMIC RENDER PORT BINDING FIX
+    # Render assigns a dynamic port. If not found, it defaults to 5000 locally.
+    port = int(os.environ.get("PORT", 5000))
+
+    print(f"KeralaRide Connect starting on public interface port {port}")
+    
+    # Use socketio.run but swap out the hardcoded 5001 port for our dynamic port variable!
+    socketio.run(app, host='0.0.0.0', port=port, debug=True, allow_unsafe_werkzeug=True)
