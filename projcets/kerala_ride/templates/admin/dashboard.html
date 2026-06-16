@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Portal - KeralaRide Connect{% endblock %}
+
+{% block content %}
+<section id="admin-dashboard-console" style="background-color: var(--primary-glow); padding: 30px 0;">
+    <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <div>
+            <h1 style="font-size: 26px;"><i class="fa-solid fa-gauge-high"></i> Administrative Control Console</h1>
+            <p style="color: var(--text-muted); font-size: 14px;">System metrics, driver review queue, and active emergencies</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <a href="{{ url_for('admin.verification') }}" class="btn btn-outline btn-sm">
+                <i class="fa-solid fa-user-check"></i> Verification Queue ({{ pending_approvals }})
+            </a>
+            <a href="{{ url_for('admin.campaigns') }}" class="btn btn-primary btn-sm">
+                <i class="fa-solid fa-bullhorn"></i> Campaigns & Offers
+            </a>
+            <!-- BRAND NEW MANAGE FARES BUTTON -->
+            <a href="{{ url_for('admin.manage_fares') }}" class="btn btn-success btn-sm" style="background-color: #10b981; border: none; color: white;">
+                <i class="fa-solid fa-indian-rupee-sign"></i> Manage Fares
+            </a>
+        </div>
+    </div>
+</section>
+
+<div class="container" style="margin-top: 30px; margin-bottom: 50px;">
+
+    <!-- Emergency SOS Alert Grid Row (Only shown if active alerts exist) -->
+    {% if active_sos %}
+    <div class="card" style="border: 2px solid var(--accent-danger); box-shadow: 0 0 20px rgba(220, 38, 38, 0.2); margin-bottom: 30px; background-color: rgba(220,38,38,0.01);">
+        <div class="card-title" style="color: var(--accent-danger); border-bottom-color: rgba(220,38,38,0.2); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-triangle-exclamation" style="animation: pulse 1s infinite alternate;"></i>
+            <span>CRITICAL ACTIVE SOS ALERTS</span>
+        </div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Booking ID</th>
+                        <th>Customer / Passenger Info</th>
+                        <th>Trip Route</th>
+                        <th>Driver Details</th>
+                        <th>Location Coordinates</th>
+                        <th>Trigger Time</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for alert in active_sos %}
+                    <tr style="background-color: rgba(220,38,38,0.03);">
+                        <td><strong>#{{ alert.booking_id }}</strong></td>
+                        <td>
+                            <div>{{ alert.booking.customer.name }}</div>
+                            <div style="font-size: 12px; color: var(--text-muted);">Mob: {{ alert.booking.customer.phone }}</div>
+                        </td>
+                        <td>
+                            <div>From: {{ alert.booking.pickup_location.split(',')[0] }}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);">To: {{ alert.booking.destination_location.split(',')[0] }}</div>
+                        </td>
+                        <td>
+                            {% if alert.booking.driver %}
+                            <div>{{ alert.booking.driver.user.name }}</div>
+                            <div style="font-size: 12px; color: var(--text-muted);">Mob: {{ alert.booking.driver.user.phone }}</div>
+                            {% else %}
+                            <span style="color: var(--text-muted);">Not Assigned</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="https://maps.google.com/?q={{ alert.latitude }},{{ alert.longitude }}" target="_blank" style="color: var(--accent-blue); font-weight: 500;">
+                                <i class="fa-solid fa-map-location-dot"></i> {{ alert.latitude }}, {{ alert.longitude }}
+                            </a>
+                        </td>
+                        <td style="font-size: 12px; color: var(--text-muted);">{{ alert.triggered_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>
+                            <button type="button" class="btn btn-danger btn-sm btn-resolve-sos" data-id="{{ alert.id }}">
+                                Mark Safe & Resolve
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Numerical Metrics Strip -->
+    <div class="stats-strip">
+        <div class="stat-box">
+            <div class="stat-icon blue"><i class="fa-solid fa-users"></i></div>
+            <div class="stat-details">
+                <h4>Total Passengers</h4>
+                <p>{{ total_customers }}</p>
+            </div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-icon green"><i class="fa-solid fa-user-group"></i></div>
+            <div class="stat-details">
+                <h4>Partner Drivers</h4>
+                <p>{{ total_drivers }}</p>
+            </div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-icon amber"><i class="fa-solid fa-hourglass-half"></i></div>
+            <div class="stat-details">
+                <h4>Pending Approvals</h4>
+                <p>{{ pending_approvals }}</p>
+            </div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-icon blue"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+            <div class="stat-details">
+                <h4>Gross Revenue</h4>
+                <p>₹{{ total_revenue }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Charts & Audit Logs -->
+    <div class="dashboard-grid">
+        <!-- Main: District Chart -->
+        <div>
+            <div class="card" style="margin-bottom: 30px;">
+                <div class="card-title">Regional Vehicle Distribution (District Level)</div>
+                <div style="position: relative; height: 300px; width: 100%;">
+                    <canvas id="districtChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar: System Audit Logs -->
+        <div>
+            <div class="card">
+                <div class="card-title">System Audit Logs</div>
+                <div style="max-height: 310px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+                    {% if recent_logs %}
+                        {% for log in recent_logs %}
+                        <div class="list-item" style="flex-direction: column; align-items: flex-start; gap: 4px; padding: 8px 0;">
+                            <div style="display: flex; justify-content: space-between; width: 100%; font-size: 11px;">
+                                <strong style="color: var(--primary-color);">{{ log.action }}</strong>
+                                <span style="color: var(--text-muted);">{{ log.created_at.strftime('%m-%d %H:%M') }}</span>
+                            </div>
+                            <p style="font-size: 12px; color: var(--text-muted);">{{ log.details }}</p>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p style="font-size: 13px; color: var(--text-muted); text-align: center;">No log records found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js CDN for modern analytics visual display -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+
+        // 1. SOS Resolution AJAX Handler
+        const resolveButtons = document.querySelectorAll(".btn-resolve-sos");
+        resolveButtons.forEach(button => {
+            button.addEventListener("click", function() {
+                const alertId = this.dataset.id;
+                button.disabled = true;
+                button.innerText = "Resolving...";
+
+                fetch(`/admin/resolve-sos/${alertId}`, {
+                    method: "POST"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert("SOS Alert resolved successfully.");
+                        window.location.reload();
+                    } else {
+                        alert("Error: " + data.message);
+                        button.disabled = false;
+                        button.innerText = "Mark Safe & Resolve";
+                    }
+                })
+                .catch(err => {
+                    console.error("SOS Resolve error:", err);
+                    window.location.reload();
+                });
+            });
+        });
+
+        // 2. District Performance Analytics Chart
+        const ctx = document.getElementById('districtChart').getContext('2d');
+
+        // Parse python dict to JS object
+        const districtData = {
+            {% for dist, count in district_counts.items() %}
+                "{{ dist }}": {{ count }},
+            {% endfor %}
+        };
+
+        const labels = Object.keys(districtData);
+        const dataValues = Object.values(districtData);
+
+        // Handle empty dataset mockup fallback
+        if (labels.length === 0) {
+            labels.push("Ernakulam", "Trivandrum", "Kozhikode");
+            dataValues.push(5, 2, 1);
+        }
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Verified Partner Drivers',
+                    data: dataValues,
+                    backgroundColor: 'rgba(6, 78, 59, 0.75)',
+                    borderColor: 'var(--primary-color)',
+                    borderWidth: 1.5,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

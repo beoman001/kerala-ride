@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Active Promotions & Offers - KeralaRide Connect{% endblock %}
+
+{% block content %}
+<section style="background-color: var(--primary-color); color: white; padding: 60px 0; text-align: center;">
+    <div class="container">
+        <h1>Exclusive Promotions & Discounts</h1>
+        <p style="color: rgba(255, 255, 255, 0.8); margin-top: 10px;">Apply these coupon codes to get the best prices on passenger rides and goods logistics across Kerala.</p>
+    </div>
+</section>
+
+<section class="container" style="padding: 60px 0; flex-grow: 1;">
+    {% if offers %}
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px;">
+            {% for offer in offers %}
+            <div class="card" style="position: relative; border-top: 4px solid var(--accent-amber); display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                    <div>
+                        <h3 style="color: var(--primary-color); font-size: 20px; font-weight: 800;">{{ offer.code }}</h3>
+                        <span style="font-size: 12px; color: var(--text-muted);">Promo Code</span>
+                    </div>
+                    <span class="badge badge-approved" style="font-size: 13px; padding: 6px 12px;">{{ offer.discount_percentage }}% OFF</span>
+                </div>
+                
+                <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 24px; flex-grow: 1;">{{ offer.description }}</p>
+                
+                <div style="border-top: 1px solid var(--border-color); padding-top: 15px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+                    <span style="color: var(--accent-danger); font-weight: 500;">
+                        <i class="fa-regular fa-clock"></i> Expires: {{ offer.expiry_date.strftime('%d %b %Y') }}
+                    </span>
+                    <button class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('{{ offer.code }}'); alert('Code copied to clipboard!');" style="padding: 4px 10px; font-size: 11px;">
+                        Copy Code
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 80px 20px;">
+            <i class="fa-solid fa-ticket" style="font-size: 48px; color: var(--border-color); margin-bottom: 15px;"></i>
+            <h3>No Active Offers</h3>
+            <p style="color: var(--text-muted);">Check back soon for festival promotions and discount campaigns!</p>
+            <a href="{{ url_for('main.index') }}" class="btn btn-primary btn-sm" style="margin-top: 20px;">Go to Homepage</a>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

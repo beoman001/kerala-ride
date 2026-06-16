@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}KeralaRide Connect{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}Kerala's premier verified transport marketplace for passenger rides and goods logistics.{% endblock %}">
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- Google Fonts: Outfit -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <!-- App Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    {% block head %}{% endblock %}
+</head>
+<body>
+
+    <!-- ===== NAVIGATION ===== -->
+    <header>
+        <nav class="navbar container">
+            <a class="brand" href="{{ url_for('main.index') }}">
+                <i class="fa-solid fa-bus-simple"></i>
+                <span>Kerala<span class="brand-accent">Ride</span></span>
+            </a>
+
+            <!-- Desktop Nav Links -->
+            <ul class="nav-links" id="nav-links">
+                <li><a href="{{ url_for('main.about') }}" class="nav-link">About</a></li>
+                <li><a href="{{ url_for('main.offers') }}" class="nav-link">Offers</a></li>
+                <li><a href="{{ url_for('main.contact') }}" class="nav-link">Support</a></li>
+                {% if current_user.is_authenticated %}
+                    {% if current_user.role == 'admin' %}
+                        <li><a href="{{ url_for('admin.dashboard') }}" class="nav-link nav-link-role"><i class="fa-solid fa-gauge-high"></i> Console</a></li>
+                    {% elif current_user.role == 'customer' %}
+                        <li><a href="{{ url_for('customer.dashboard') }}" class="nav-link nav-link-role"><i class="fa-solid fa-user"></i> Dashboard</a></li>
+                    {% elif current_user.role == 'driver' %}
+                        <li><a href="{{ url_for('driver.dashboard') }}" class="nav-link nav-link-role"><i class="fa-solid fa-steering-wheel"></i> Console</a></li>
+                    {% endif %}
+                {% endif %}
+            </ul>
+
+            <div class="nav-actions">
+                {% if current_user.is_authenticated %}
+                    <span class="nav-user-name">{{ current_user.name.split()[0] }}</span>
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline btn-sm">
+                        <i class="fa-solid fa-right-from-bracket"></i> Logout
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline btn-sm">Login</a>
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm">Register</a>
+                {% endif %}
+            </div>
+
+            <!-- Mobile hamburger -->
+            <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle navigation">
+                <span></span><span></span><span></span>
+            </button>
+        </nav>
+    </header>
+
+    <!-- ===== FLASH MESSAGES ===== -->
+    <div class="flash-container container" id="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} flash-alert" role="alert">
+                    <span>{{ message }}</span>
+                    <button class="alert-close" onclick="this.parentElement.remove()" aria-label="Dismiss">&times;</button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- ===== PAGE CONTENT ===== -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- ===== FOOTER ===== -->
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <div class="brand" style="margin-bottom: 12px;">
+                        <i class="fa-solid fa-bus-simple"></i>
+                        <span>Kerala<span class="brand-accent">Ride</span></span>
+                    </div>
+                    <p>Providing premium vehicle logistics and verified partner registries to secure and optimize transit across all 14 districts of Kerala.</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="{{ url_for('main.about') }}">About Us</a></li>
+                        <li><a href="{{ url_for('main.contact') }}">Contact Support</a></li>
+                        <li><a href="{{ url_for('main.offers') }}">Special Offers</a></li>
+                        <li><a href="{{ url_for('auth.driver_register') }}">Partner with Us</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Contact</h4>
+                    <ul>
+                        <li><i class="fa-solid fa-phone"></i> <a href="tel:+918590513605">+91 85905 13605</a></li>
+<li><i class="fa-solid fa-envelope"></i> <a href="mailto:beonbinesh972@gmail.com">beonbinesh972@gmail.com</a></li>
+<li><i class="fa-solid fa-location-dot"></i> Thekkedath Building, Piravom,Ernakulam, Kerala</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                &copy; 2026 KeralaRide Connect (Pvt Ltd). All Rights Will be Reserved.
+            </div>
+        </div>
+    </footer>
+
+    <!-- ===== SCRIPTS ===== -->
+    <!-- Socket.IO CDN -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/socket.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

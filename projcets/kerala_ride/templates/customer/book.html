@@ -1,0 +1,540 @@
+{% extends "base.html" %}
+
+{% block title %}Book a Ride - KeralaRide Connect{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<style>
+    /* Sleek tabs matching your reference image */
+    .nav-tabs-custom {
+        display: flex;
+        border-bottom: 2px solid #d1d5db;
+        margin-bottom: 25px;
+        width: 100%;
+    }
+    .nav-tab-item {
+        flex: 1;
+        text-align: center;
+        padding: 15px;
+        cursor: pointer;
+        font-weight: 800;
+        color: #6b7280;
+        font-size: 15px;
+        transition: all 0.2s ease-in-out;
+        border-bottom: 3px solid transparent;
+    }
+    .nav-tab-item.active {
+        color: #111827;
+        border-bottom: 3px solid #064e3b;
+    }
+    .nav-tab-item:hover:not(.active) {
+        background-color: #f9fafb;
+        color: #374151;
+    }
+
+    /* Subdued input styling */
+    .form-control, .form-select {
+        background-color: #f3f4f6;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 10px 15px;
+        font-size: 14px;
+        width: 100%;
+    }
+    .form-control:focus, .form-select:focus {
+        background-color: #ffffff;
+        border-color: #064e3b;
+        box-shadow: 0 0 0 0.2rem rgba(6, 78, 59, 0.1);
+    }
+    .form-label {
+        font-weight: 700;
+        color: #374151;
+        font-size: 13px;
+        margin-bottom: 6px;
+    }
+
+    /* High-Precision Free Map Canvas */
+    #map-canvas {
+        height: 350px;
+        width: 100%;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        border: 1px solid #d1d5db;
+        z-index: 1;
+    }
+
+    .map-instruction {
+        font-size: 12px;
+        color: #064e3b;
+        background-color: #e6f4ea;
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        font-weight: 600;
+    }
+
+    /* Custom styling for free search dropdown boxes */
+    .autocomplete-container {
+        position: relative;
+    }
+    .suggestions-list {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #d1d5db;
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 9999;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+    .suggestions-list li {
+        padding: 10px 15px;
+        cursor: pointer;
+        font-size: 13px;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    .suggestions-list li:hover {
+        background-color: #f3f4f6;
+    }
+
+    .strictly-hidden {
+        display: none !important;
+    }
+</style>
+
+<div class="container my-5" style="margin-bottom: 80px;">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0" style="border-radius: 12px; background-color: #fdfdfd;">
+                <div class="card-body p-4 p-md-5">
+
+                    <div class="nav-tabs-custom" id="serviceTabs">
+                        <div class="nav-tab-item active" id="tabPassenger">
+                            <i class="fa-solid fa-user-friends me-2"></i> Passenger Ride
+                        </div>
+                        <div class="nav-tab-item" id="tabGoods">
+                            <i class="fa-solid fa-truck-moving me-2"></i> Goods Cargo
+                        </div>
+                    </div>
+
+                    <div class="map-instruction">
+                        <i class="fa-solid fa-map-location-dot me-1"></i> Type to search addresses or <b>tap directly on the map</b> to drop pins anywhere in Kerala!
+                    </div>
+
+                    <div id="map-canvas"></div>
+
+                    <form method="POST" action="{{ url_for('customer.book') }}" id="bookingForm">
+                        <input type="hidden" name="booking_type" id="booking_type" value="passenger">
+
+                        <input type="hidden" name="estimated_fare" id="estimated_fare" value="0.0">
+
+                        <div class="row mb-3 gx-3">
+                            <div class="col-md-6 mb-3 mb-md-0 autocomplete-container">
+                                <label class="form-label">
+                                    <input type="radio" name="map_target" id="target_pickup" value="pickup" checked class="me-1">
+                                    Pickup Address <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" id="pickup" name="pickup" class="form-control" placeholder="Search address or tap map" autocomplete="off" required>
+                                <ul id="pickup-suggestions" class="suggestions-list strictly-hidden"></ul>
+                            </div>
+                            <div class="col-md-6 autocomplete-container">
+                                <label class="form-label">
+                                    <input type="radio" name="map_target" id="target_dest" value="destination" class="me-1">
+                                    Destination / Dropoff <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" id="destination" name="destination" class="form-control" placeholder="Search address or tap map" autocomplete="off" required>
+                                <ul id="dest-suggestions" class="suggestions-list strictly-hidden"></ul>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Vehicle Category <span class="text-danger">*</span></label>
+                            <div id="passengerSelectWrapper">
+                                <select id="vehicle_category_passenger" name="vehicle_category" class="form-select form-control" required>
+                                    <option value="" disabled selected>Select vehicle...</option>
+                                    <option value="Auto Rickshaw">Auto Rickshaw (3-seater, budget-friendly)</option>
+                                    <option value="Taxi">Taxi (4-seater, standard comfort)</option>
+                                    <option value="Standard Cars">Standard Cars (4-seater, premium)</option>
+                                    <option value="8-Seater SUV">8-Seater SUV (Extra space)</option>
+                                    <option value="MPV">MPV (Family transport)</option>
+                                    <option value="Tempo Traveller">Tempo Traveller (Group travel)</option>
+                                </select>
+                            </div>
+                            <div id="goodsSelectWrapper" class="strictly-hidden">
+                                <select id="vehicle_category_goods" name="vehicle_category" class="form-select form-control" disabled required>
+                                    <option value="" disabled selected>Select vehicle...</option>
+                                    <option value="Goods Auto">Goods Auto (Light local transport)</option>
+                                    <option value="Mini Pickup">Mini Pickup (Medium loads)</option>
+                                    <option value="Pickup">Pickup (Standard cargo)</option>
+                                    <option value="Lorry">Lorry (Heavy freight)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="goodsBlock" class="strictly-hidden border p-3 rounded mb-3" style="background-color: #f9fafb;">
+                            <h5 class="font-weight-bold mb-3" style="font-size: 14px;"><i class="fa-solid fa-pallet"></i> Consignment Details</h5>
+                            <div class="row gx-3">
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label text-secondary">Cargo Description</label>
+                                    <input type="text" id="material_description" name="material_description" class="form-control" placeholder="e.g. Furniture" disabled>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-secondary">Weight Estimate (Kg)</label>
+                                    <input type="number" step="0.1" id="weight" name="weight" class="form-control" placeholder="e.g. 50" disabled>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4 gx-3">
+                            <div class="col-md-6 mb-3">
+                                <label for="payment_method" class="form-label">Payment Option</label>
+                                <select id="payment_method" name="payment_method" class="form-select form-control">
+                                    <option value="Cash">Cash to Driver</option>
+                                    <option value="UPI">UPI / Google Pay</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="promo_code" class="form-label">Promo Code</label>
+                                <input type="text" id="promo_code" name="promo_code" class="form-control text-uppercase" placeholder="e.g. KERALA50">
+                            </div>
+                        </div>
+
+                        <button type="button" id="calcFareBtn" class="btn w-100 py-3 font-weight-bold shadow-sm mb-3" style="border-radius: 8px; background-color: #e5e7eb; color: #111827; border: 1px solid #d1d5db;">
+                            <i class="fa-solid fa-calculator me-2"></i> Get Fare Estimate
+                        </button>
+
+                        <div id="estimateWidget" class="strictly-hidden card p-4 mb-4" style="background-color: #f0fdf4; border: 1px solid #a7f3d0 !important;">
+                            <h5 class="font-weight-bold mb-3 text-dark" style="font-size: 14px; text-transform: uppercase;"><i class="fa-solid fa-circle-check text-success me-1"></i> Pre-Booking Fare Breakdown</h5>
+                            <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px;">
+                                <span>Estimated Distance:</span>
+                                <span id="calcDistance" class="font-weight-bold">-- km (Forward)</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px;">
+                                <span>Base Charging:</span>
+                                <span id="calcBaseRate" class="font-weight-bold">--</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px;">
+                                <span>Rate Per Extra KM:</span>
+                                <span id="calcRatePerKm" class="font-weight-bold">--</span>
+                            </div>
+
+                            <div id="returnBreakdown" style="display: flex; justify-content: space-between; font-size: 14px; color: #b45309;">
+                                <span class="font-weight-bold">Return Journey Charge:</span>
+                                <span id="calcReturnCharge" class="font-weight-bold">+ ₹0.00</span>
+                            </div>
+
+                            <div id="promoBreakdown" style="display: flex; justify-content: space-between; font-size: 14px; color: #10b981;" class="strictly-hidden">
+                                <span class="font-weight-bold">Coupon Savings:</span>
+                                <span id="calcPromo" class="font-weight-bold">- ₹0.00</span>
+                            </div>
+                            <hr class="my-3">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-weight: 700; font-size: 16px;">Total Payable Amount:</span>
+                                <span style="font-weight: 900; color: #064e3b; font-size: 24px;" id="calcFinalTotal">₹0.00</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" id="bookBtn" class="btn w-100 py-3 font-weight-bold shadow-sm strictly-hidden" style="border-radius: 8px; background-color: #064e3b; color: white; border: none;">
+                            <i class="fa-solid fa-car-side me-2"></i> Confirm & Book Ride
+                        </button>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+let map;
+let pickupMarker = null;
+let destMarker = null;
+let routeLine = null; // Variable to hold our road layout line polyline object
+
+function initMap() {
+    const kochiCenter = [9.9816, 76.2999];
+    map = L.map('map-canvas').setView(kochiCenter, 10);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors © CARTO'
+    }).addTo(map);
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const currentCoords = [position.coords.latitude, position.coords.longitude];
+                map.flyTo(currentCoords, 13, { duration: 1.5 });
+                updateLocationFromCoords(currentCoords[0], currentCoords[1], "pickup");
+            },
+            (error) => {
+                console.log("GPS Location delayed or denied. Using default center.");
+            },
+            { timeout: 5000, enableHighAccuracy: true }
+        );
+    }
+
+    map.on('click', function(e) {
+        const targetType = document.querySelector('input[name="map_target"]:checked').value;
+        updateLocationFromCoords(e.latlng.lat, e.latlng.lng, targetType);
+    });
+
+    setTimeout(() => { map.invalidateSize(); }, 300);
+}
+
+function updateLocationFromCoords(lat, lng, targetType) {
+    if (targetType === "pickup") {
+        if (pickupMarker) { map.removeLayer(pickupMarker); }
+        pickupMarker = L.marker([lat, lng]).addTo(map).bindPopup("🛫 Pickup Spot").openPopup();
+        document.getElementById("pickup").value = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+        document.getElementById("target_dest").checked = true;
+    } else {
+        if (destMarker) { map.removeLayer(destMarker); }
+        destMarker = L.marker([lat, lng]).addTo(map).bindPopup("🛬 Destination Spot").openPopup();
+        document.getElementById("destination").value = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+    }
+    resetEstimation();
+}
+
+function setupAutocomplete(inputElement, suggestionsElement, targetType) {
+    let debounceTimer;
+
+    inputElement.addEventListener("input", function() {
+        clearTimeout(debounceTimer);
+
+        const query = inputElement.value.trim();
+        if (query.length < 3) {
+            suggestionsElement.classList.add("strictly-hidden");
+            return;
+        }
+
+        debounceTimer = setTimeout(() => {
+            const searchUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&lat=10.0&lon=76.5&limit=5`;
+
+            fetch(searchUrl)
+                .then(res => res.json())
+                .then(data => {
+                    suggestionsElement.innerHTML = "";
+                    if (data.features && data.features.length > 0) {
+                        suggestionsElement.classList.remove("strictly-hidden");
+                        data.features.forEach(feature => {
+                            const props = feature.properties;
+                            const lonLat = feature.geometry.coordinates;
+
+                            const name = props.name || "";
+                            const city = props.city || props.district || props.state || "";
+                            const fullLabel = city ? `${name}, ${city}` : name;
+
+                            const li = document.createElement("li");
+                            li.innerText = fullLabel;
+                            li.addEventListener("click", function() {
+                                inputElement.value = fullLabel;
+                                suggestionsElement.classList.add("strictly-hidden");
+                                updateLocationFromCoords(lonLat[1], lonLat[0], targetType);
+                                map.flyTo([lonLat[1], lonLat[0]], 14, { duration: 1 });
+                            });
+                            suggestionsElement.appendChild(li);
+                        });
+                    } else {
+                        suggestionsElement.classList.add("strictly-hidden");
+                    }
+                })
+                .catch(err => console.log("Search request delayed."));
+        }, 300);
+    });
+
+    document.addEventListener("click", function(e) {
+        if (e.target !== inputElement) {
+            suggestionsElement.classList.add("strictly-hidden");
+        }
+    });
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    initMap();
+
+    const pickupInput = document.getElementById("pickup");
+    const destInput = document.getElementById("destination");
+    const pickupSuggestions = document.getElementById("pickup-suggestions");
+    const destSuggestions = document.getElementById("dest-suggestions");
+
+    setupAutocomplete(pickupInput, pickupSuggestions, "pickup");
+    setupAutocomplete(destInput, destSuggestions, "destination");
+
+    const tabPassenger = document.getElementById("tabPassenger");
+    const tabGoods = document.getElementById("tabGoods");
+    const bookingTypeInput = document.getElementById("booking_type");
+    const passengerSelectWrapper = document.getElementById("passengerSelectWrapper");
+    const passengerSelect = document.getElementById("vehicle_category_passenger");
+    const goodsSelectWrapper = document.getElementById("goodsSelectWrapper");
+    const goodsSelect = document.getElementById("vehicle_category_goods");
+    const goodsBlock = document.getElementById("goodsBlock");
+    const materialDescription = document.getElementById("material_description");
+    const weightInput = document.getElementById("weight");
+    const promoInput = document.getElementById("promo_code");
+    const calcFareBtn = document.getElementById("calcFareBtn");
+    const bookBtn = document.getElementById("bookBtn");
+    const estimateWidget = document.getElementById("estimateWidget");
+    const calcDistance = document.getElementById("calcDistance");
+    const calcBaseRate = document.getElementById("calcBaseRate");
+    const calcRatePerKm = document.getElementById("calcRatePerKm");
+    const promoBreakdown = document.getElementById("promoBreakdown");
+    const calcPromo = document.getElementById("calcPromo");
+    const calcFinalTotal = document.getElementById("calcFinalTotal");
+
+    function resetEstimation() {
+        estimateWidget.classList.add("strictly-hidden");
+        bookBtn.classList.add("strictly-hidden");
+        calcFareBtn.innerHTML = '<i class="fa-solid fa-calculator me-2"></i> Get Fare Estimate';
+        calcFareBtn.classList.remove("strictly-hidden");
+        // Clear route polyline paths if we change pins
+        if (routeLine) {
+            map.removeLayer(routeLine);
+            routeLine = null;
+        }
+    }
+
+    function renderTab(targetMode) {
+        resetEstimation();
+        if (targetMode === "goods") {
+            bookingTypeInput.value = "goods";
+            tabGoods.classList.add("active");
+            tabPassenger.classList.remove("active");
+            passengerSelectWrapper.classList.add("strictly-hidden");
+            passengerSelect.disabled = true;
+            goodsSelectWrapper.classList.remove("strictly-hidden");
+            goodsSelect.disabled = false;
+            goodsBlock.classList.remove("strictly-hidden");
+            materialDescription.disabled = false;
+            weightInput.disabled = false;
+        } else {
+            bookingTypeInput.value = "passenger";
+            tabPassenger.classList.add("active");
+            tabGoods.classList.remove("active");
+            goodsSelectWrapper.classList.add("strictly-hidden");
+            goodsSelect.disabled = true;
+            passengerSelectWrapper.classList.remove("strictly-hidden");
+            passengerSelect.disabled = false;
+            goodsBlock.classList.add("strictly-hidden");
+            materialDescription.disabled = true;
+            weightInput.disabled = true;
+        }
+    }
+
+    tabPassenger.addEventListener("click", () => renderTab("passenger"));
+    tabGoods.addEventListener("click", () => renderTab("goods"));
+
+    // ==========================================
+    // DEADLINE FIX: FORCE RECALCULATION ON INPUT
+    // ==========================================
+    pickupInput.addEventListener("input", resetEstimation);
+    destInput.addEventListener("input", resetEstimation);
+    passengerSelect.addEventListener("change", resetEstimation);
+    goodsSelect.addEventListener("change", resetEstimation);
+
+    calcFareBtn.addEventListener("click", function() {
+        const pickup = pickupInput.value.trim();
+        const destination = destInput.value.trim();
+        const category = bookingTypeInput.value === "goods" ? goodsSelect.value : passengerSelect.value;
+        const promo_code = promoInput.value.trim();
+
+        if (!pickup || !destination || !category) {
+            alert("Please select locations on the map or use search fields first.");
+            return;
+        }
+
+        calcFareBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Calculating Fare...';
+
+        fetch("/customer/estimate-fare", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pickup: pickup, destination: destination, category: category, promo_code: promo_code })
+        })
+        .then(res => res.json())
+        .then(data => {
+            calcFareBtn.innerHTML = '<i class="fa-solid fa-rotate-right me-2"></i> Recalculate Fare';
+            if (data.success) {
+                estimateWidget.classList.remove("strictly-hidden");
+
+                // ==========================================
+                // DYNAMIC UI LOGIC (UPDATED FOR GLOBAL RETURN CHARGE)
+                // ==========================================
+                calcDistance.innerText = `${data.distance_km} km (Forward Journey)`;
+
+                if (data.is_outstation) {
+                    calcBaseRate.innerText = `N/A (Outstation Flat Rate)`;
+                } else {
+                    calcBaseRate.innerText = `₹${data.base_fare} (incl. first ${data.base_distance} km)`;
+                }
+
+                calcRatePerKm.innerText = `₹${data.rate_per_km}/km`;
+                document.getElementById("calcReturnCharge").innerText = `+ ₹${data.return_charge.toFixed(2)}`;
+
+                if (data.promo_applied && data.discount > 0) {
+                    promoBreakdown.classList.remove("strictly-hidden");
+                    calcPromo.innerText = `- ₹${data.discount.toFixed(2)}`;
+                } else {
+                    promoBreakdown.classList.add("strictly-hidden");
+                }
+
+                calcFinalTotal.innerText = `₹${data.final_fare.toFixed(2)}`;
+
+                // INJECT THE FINAL CALCULATED FARE INTO THE HIDDEN FORM INPUT
+                document.getElementById("estimated_fare").value = data.final_fare.toFixed(2);
+
+                bookBtn.classList.remove("strictly-hidden");
+                calcFareBtn.classList.add("strictly-hidden");
+
+                // ==========================================
+                // VISUAL ROUTE DRAWING LOGIC
+                // ==========================================
+                if (routeLine) { map.removeLayer(routeLine); } // Clear old lines
+
+                if (data.route_geometry) {
+                    // Create an open-source GeoJSON vector line tracing the streets
+                    routeLine = L.geoJSON(data.route_geometry, {
+                        style: {
+                            color: '#064e3b', // Match your branding dark green colors
+                            weight: 5,
+                            opacity: 0.85
+                        }
+                    }).addTo(map);
+
+                    // Automatically frame the camera bounds around the full route polyline coordinates!
+                    map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+                }
+
+            } else {
+                alert(data.error || "Failed to calculate fare.");
+            }
+        })
+        .catch(err => {
+            calcFareBtn.innerHTML = '<i class="fa-solid fa-calculator me-2"></i> Get Fare Estimate';
+            alert("Network routing calculation connection failed.");
+        });
+    });
+
+    // ==========================================
+    // DOUBLE-BOOKING PREVENTION
+    // ==========================================
+    const bookingForm = document.getElementById("bookingForm");
+    bookingForm.addEventListener("submit", function() {
+        // Lock the submit button the millisecond it's clicked
+        bookBtn.disabled = true;
+        bookBtn.style.opacity = "0.7";
+        bookBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Securing Ride...';
+    });
+});
+</script>
+{% endblock %}

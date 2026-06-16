@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Login - KeralaRide Connect{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-container">
+        <div class="card glass-card">
+            <h2 style="text-align: center; margin-bottom: 8px;">Welcome Back</h2>
+            <p style="text-align: center; color: var(--text-muted); font-size: 14px; margin-bottom: 24px;">Sign in to your KeralaRide Connect account</p>
+            
+            <form action="{{ url_for('auth.login') }}" method="POST">
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Address</label>
+                    <input type="email" id="email" name="email" class="form-control" placeholder="e.g. name@example.com" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" id="password" name="password" class="form-control" placeholder="••••••••" required>
+                </div>
+                
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-bottom: 24px;">
+                    <input type="checkbox" id="remember" name="remember" style="cursor: pointer;">
+                    <label for="remember" style="font-size: 14px; color: var(--text-muted); cursor: pointer; user-select: none;">Remember me</label>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-bottom: 16px;">
+                    <i class="fa-solid fa-right-to-bracket"></i> Sign In
+                </button>
+            </form>
+            
+            <div style="text-align: center; font-size: 14px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <p style="margin-bottom: 8px;">Don't have an account? <a href="{{ url_for('auth.register') }}" style="color: var(--accent-amber); font-weight: 600;">Sign Up as User</a></p>
+                <p>Own a commercial vehicle? <a href="{{ url_for('auth.driver_register') }}" style="color: var(--accent-blue); font-weight: 600;">Register as Partner Driver</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Passenger Dashboard - KeralaRide Connect{% endblock %}
+
+{% block content %}
+<section style="background-color: var(--primary-glow); padding: 30px 0;">
+    <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <div>
+            <h1 style="font-size: 26px;">Passenger Dashboard</h1>
+            <p style="color: var(--text-muted); font-size: 14px;">Manage your requests, saved hubs, and safety contacts</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <a href="{{ url_for('customer.book') }}?booking_type=passenger" class="btn btn-primary btn-sm">
+                <i class="fa-solid fa-car"></i> Book Passenger Ride
+            </a>
+            <a href="{{ url_for('customer.book') }}?booking_type=goods" class="btn btn-accent btn-sm">
+                <i class="fa-solid fa-box"></i> Transport Goods
+            </a>
+        </div>
+    </div>
+</section>
+
+<div class="container" style="margin-top: 30px; margin-bottom: 50px;">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div style="margin-bottom: 25px;">
+                {% for category, message in messages %}
+                    <div style="padding: 12px 20px; border-radius: 6px; font-size: 14px; font-weight: 600; margin-bottom: 10px;
+                                background-color: {% if category == 'danger' %}#fef2f2{% elif category == 'warning' %}#fffbeb{% else %}#f0fdf4{% endif %};
+                                color: {% if category == 'danger' %}#991b1b{% elif category == 'warning' %}#92400e{% else %}#166534{% endif %};
+                                border: 1px solid {% if category == 'danger' %}#fca5a5{% elif category == 'warning' %}#fde68a{% else %}#bbf7d0{% endif %};">
+                        <i class="fa-solid {% if category == 'danger' %}fa-circle-xmark{% elif category == 'warning' %}fa-triangle-exclamation{% else %}fa-circle-check{% endif %} me-2"></i>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    {% if active_bookings %}
+    <div style="margin-bottom: 30px;">
+        <h3 style="margin-bottom: 15px; font-size: 18px; color: var(--accent-amber); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-circle-dot" style="animation: pulse 1.5s infinite;"></i>
+            Active Bookings (In-Progress)
+        </h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+            {% for booking in active_bookings %}
+            <div class="card glass-card" id="trip-card-{{ booking.id }}" style="border-left: 5px solid var(--accent-blue);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-size: 14px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">
+                        Booking #{{ booking.id }}
+                    </span>
+                    <span class="badge badge-{{ booking.status.lower() }}">{{ booking.status }}</span>
+                </div>
+                <div style="font-size: 14px; margin-bottom: 15px;">
+                    <p><strong>Pickup:</strong> {{ booking.pickup_location }}</p>
+                    <p><strong>Dropoff:</strong> {{ booking.destination_location }}</p>
+                    <p><strong>Vehicle:</strong> {{ booking.vehicle_category }}</p>
+                    <p style="font-size: 16px; margin-top: 5px; color: var(--primary-color);"><strong>Est. Fare:</strong> ₹{{ booking.estimated_fare }}</p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <a href="{{ url_for('customer.trip', booking_id=booking.id) }}" class="btn btn-primary btn-sm" style="flex: 2;">
+                        <i class="fa-solid fa-location-crosshairs"></i> Track Live
+                    </a>
+
+                    {% if booking.status == 'Pending' %}
+                    <form action="{{ url_for('customer.cancel_ride', booking_id=booking.id) }}" method="POST" style="flex: 1; display: flex;"
+                          onsubmit="return confirm('Are you sure you want to cancel this booking? If it has been more than 15 minutes since booking, a 1/4 (25%) penalty charge will be billed to your account for the driver\'s time.');">
+                        <button type="submit" class="btn btn-outline btn-sm" style="width: 100%; border-color: var(--accent-danger); color: var(--accent-danger); background: transparent; padding: 4px 8px; font-weight: 700; cursor: pointer; border-radius: 4px;">
+                            <i class="fa-solid fa-xmark"></i> Cancel
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="dashboard-grid">
+        <div>
+            <div class="card" style="margin-bottom: 30px;">
+                <div class="card-title">Booking History</div>
+                {% if past_bookings %}
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Type</th>
+                                <th>Route</th>
+                                <th>Vehicle</th>
+                                <th>Fare</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for booking in past_bookings %}
+                            <tr>
+                                <td>#{{ booking.id }}</td>
+                                <td>
+                                    <span class="badge badge-active" style="background-color: #f1f5f9; color: #475569;">
+                                        {{ booking.type }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div style="font-weight: 500;">From: {{ booking.pickup_location.split(',')[0] }}</div>
+                                    <div style="font-size: 12px; color: var(--text-muted);">To: {{ booking.destination_location.split(',')[0] }}</div>
+                                </td>
+                                <td>{{ booking.vehicle_category }}</td>
+                                <td>₹{{ booking.final_fare or booking.estimated_fare }}</td>
+                                <td>
+                                    <span class="badge badge-{{ booking.status.lower() }}">{{ booking.status }}</span>
+                                </td>
+                                <td style="font-size: 12px; color: var(--text-muted);">
+                                    {{ booking.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div style="text-align: center; padding: 40px 0; color: var(--text-muted);">
+                    <i class="fa-solid fa-receipt" style="font-size: 36px; margin-bottom: 10px;"></i>
+                    <p>No past trips logged yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 30px;">
+            <div class="card">
+                <div class="card-title">
+                    <span><i class="fa-solid fa-map-pin"></i> Saved Locations</span>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    {% if locations %}
+                        {% for loc in locations %}
+                        <div class="list-item">
+                            <div class="list-item-details">
+                                <h5>{{ loc.label }}</h5>
+                                <p>{{ loc.address.split(',')[0] }}</p>
+                            </div>
+                            <form action="{{ url_for('customer.delete_location', loc_id=loc.id) }}" method="POST">
+                                <button type="submit" style="background: none; border: none; color: var(--accent-danger); cursor: pointer;" title="Delete">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p style="font-size: 13px; color: var(--text-muted); text-align: center; padding: 10px 0;">No saved locations.</p>
+                    {% endif %}
+                </div>
+
+                <form action="{{ url_for('customer.add_location') }}" method="POST" style="border-top: 1px solid var(--border-color); padding-top: 15px;">
+                    <div style="margin-bottom: 8px;">
+                        <input type="text" name="label" class="form-control" placeholder="Label (e.g. Home, Office)" style="padding: 6px 12px; font-size: 13px;" required>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <input type="text" name="address" class="form-control" placeholder="Address description" style="padding: 6px 12px; font-size: 13px;" required>
+                    </div>
+                    <button type="submit" class="btn btn-outline btn-sm" style="width: 100%; padding: 4px;">
+                        <i class="fa-solid fa-plus"></i> Save Location
+                    </button>
+                </form>
+            </div>
+
+            <div class="card" style="border: 1px solid rgba(220, 38, 38, 0.2); background-color: rgba(220, 38, 38, 0.01);">
+                <div class="card-title" style="color: var(--accent-danger);">
+                    <span><i class="fa-solid fa-shield-heart"></i> Safety Contacts</span>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">These numbers are notified instantly if you trigger the SOS emergency alert during a trip.</p>
+
+                <div style="margin-bottom: 15px;">
+                    {% if contacts %}
+                        {% for con in contacts %}
+                        <div class="list-item">
+                            <div class="list-item-details">
+                                <h5>{{ con.name }}</h5>
+                                <p>{{ con.phone }}</p>
+                            </div>
+                            <form action="{{ url_for('customer.delete_contact', contact_id=con.id) }}" method="POST">
+                                <button type="submit" style="background: none; border: none; color: var(--accent-danger); cursor: pointer;" title="Delete">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p style="font-size: 13px; color: var(--text-muted); text-align: center; padding: 10px 0;">No emergency contacts added yet.</p>
+                    {% endif %}
+                </div>
+
+                <form action="{{ url_for('customer.add_contact') }}" method="POST" style="border-top: 1px solid var(--border-color); padding-top: 15px;">
+                    <div style="margin-bottom: 8px;">
+                        <input type="text" name="name" class="form-control" placeholder="Contact Name" style="padding: 6px 12px; font-size: 13px;" required>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <input type="tel" name="phone" class="form-control" placeholder="10-digit mobile" pattern="[0-9]{10}" style="padding: 6px 12px; font-size: 13px;" required>
+                    </div>
+                    <button type="submit" class="btn btn-outline btn-sm" style="width: 100%; padding: 4px; border-color: var(--accent-danger); color: var(--accent-danger);">
+                        <i class="fa-solid fa-plus"></i> Save Contact
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

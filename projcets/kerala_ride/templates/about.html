@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}About Us - KeralaRide Connect{% endblock %}
+
+{% block content %}
+<section style="background-color: var(--primary-color); color: white; padding: 60px 0; text-align: center;">
+    <div class="container">
+        <h1>About KeralaRide Connect</h1>
+        <p style="color: rgba(255, 255, 255, 0.8); margin-top: 10px;">Our mission is to build Kerala's most trusted, unified transport marketplace.</p>
+    </div>
+</section>
+
+<section class="container" style="padding: 60px 0; flex-grow: 1;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 40px; margin-bottom: 40px;">
+        <div>
+            <h2 style="margin-bottom: 15px;">Our Vision</h2>
+            <p style="color: var(--text-muted); margin-bottom: 20px;">KeralaRide Connect was established to solve a unique challenge: connecting passenger commutes and goods transport under one transparent regional platform. By collaborating with local bodies (panchayats, municipalities, and corporations), we make sure commercial vehicle operations run in harmony with community safety guidelines.</p>
+            <p style="color: var(--text-muted);">From Trivandrum to Kasaragod, we support Kerala's local drivers by giving them a digital portal to find jobs without middleman commissions, keeping fares affordable for customers.</p>
+        </div>
+        <div class="card glass-card" style="border-left: 5px solid var(--accent-amber);">
+            <h3 style="margin-bottom: 15px;">Supported Vehicle Network</h3>
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 14px;">
+                <li><i class="fa-solid fa-circle-check" style="color: var(--accent-success);"></i> <strong>Auto Rickshaw:</strong> Short commutes in urban and village lanes</li>
+                <li><i class="fa-solid fa-circle-check" style="color: var(--accent-success);"></i> <strong>Taxi / Standard Cars:</strong> Inter-city comfort rides</li>
+                <li><i class="fa-solid fa-circle-check" style="color: var(--accent-success);"></i> <strong>MPV / Innova:</strong> Premium 7-seater family tourism</li>
+                <li><i class="fa-solid fa-circle-check" style="color: var(--accent-success);"></i> <strong>Tempo Traveller & Bus:</strong> Group tourism and events</li>
+                <li><i class="fa-solid fa-circle-check" style="color: var(--accent-success);"></i> <strong>Pickup & Lorry:</strong> Light and heavy freight shipment</li>
+            </ul>
+        </div>
+    </div>
+</section>
+{% endblock %}

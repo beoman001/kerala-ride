@@ -1,0 +1,142 @@
+// KeralaRide Connect SocketIO Event Router
+document.addEventListener("DOMContentLoaded", function() {
+    // Establish connection to socket server
+    const socket = io();
+
+    socket.on('connect', () => {
+        console.log('Connected to KeralaRide Connect WebSocket server.');
+    });
+
+    // 1. Customer Trip Updates Listener
+    socket.on('booking_status', (data) => {
+        const activeTripCard = document.getElementById(`trip-card-${data.booking_id}`);
+        if (activeTripCard) {
+            console.log("Trip status change received:", data);
+            
+            // If the status is completed, reload the page to display final fare details and receipt
+            if (data.status === 'Completed') {
+                window.location.reload();
+                return;
+            }
+            
+            // Otherwise, update UI indicators
+            const statusBadge = activeTripCard.querySelector(".badge");
+            if (statusBadge) {
+                statusBadge.className = `badge badge-${data.status.toLowerCase()}`;
+                statusBadge.innerText = data.status;
+            }
+
+            const statusText = document.getElementById("trip-status-text");
+            if (statusText) {
+                if (data.status === 'Accepted') statusText.innerText = "Driver Assigned & En Route";
+                else if (data.status === 'Arrived') statusText.innerText = "Driver Arrived at Pickup";
+                else if (data.status === 'Active') statusText.innerText = "Trip in Progress";
+            }
+
+            // Update Map Tracker if available
+            if (window.mapTrackerInstance) {
+                window.mapTrackerInstance.updateStatus(data.status);
+            }
+            
+            // Reload page on major milestones to refresh driver detail blocks
+            if (data.status === 'Accepted' || data.status === 'Active') {
+                setTimeout(() => window.location.reload(), 1500);
+            }
+        }
+    });
+
+    // 2. Online Driver Booking Dispatcher
+    socket.on('new_booking', (data) => {
+        const driverDashboard = document.getElementById('driver-dashboard-console');
+        if (driverDashboard) {
+            console.log("New booking dispatch received:", data);
+            
+            // Create a sliding booking alert box at the bottom right
+            // Remove existing alert if present
+            const oldAlert = document.getElementById('booking-dispatch-popup');
+            if (oldAlert) oldAlert.remove();
+
+            const popup = document.createElement('div');
+            popup.id = 'booking-dispatch-popup';
+            popup.className = 'card glass-card booking-popup-modal';
+            
+            let goodsMeta = '';
+            if (data.type === 'goods') {
+                goodsMeta = `
+                    <div style="margin: 8px 0; font-size: 13px; color: #4b5563;">
+                        <strong>Goods Description:</strong> ${data.material} <br>
+                        <strong>Weight:</strong> ${data.weight} kg
+                    </div>
+                `;
+            }
+
+            popup.innerHTML = `
+                <div class="card-title" style="border-bottom: 2px solid var(--primary-color); color: var(--primary-color);">
+                    <span>⚡ New Booking Request</span>
+                    <span class="badge badge-active">${data.type}</span>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <p style="font-size: 15px; margin-bottom: 4px;"><strong>Customer:</strong> ${data.customer_name}</p>
+                    <p style="font-size: 13px; color: #4b5563;"><strong>Pickup:</strong> ${data.pickup}</p>
+                    <p style="font-size: 13px; color: #4b5563;"><strong>Drop:</strong> ${data.destination}</p>
+                    ${goodsMeta}
+                    <h3 style="color: var(--accent-amber); margin-top: 10px;">Est. Fare: ₹${data.fare}</h3>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <form action="/driver/accept/${data.booking_id}" method="POST" style="flex: 1;">
+                        <button type="submit" class="btn btn-primary btn-sm" style="width: 100%;">Accept Job</button>
+                    </form>
+                    <button onclick="document.getElementById('booking-dispatch-popup').remove();" class="btn btn-outline btn-sm" style="flex: 1;">Ignore</button>
+                </div>
+            `;
+
+            document.body.appendChild(popup);
+            
+            // Auto close after 30 seconds
+            setTimeout(() => {
+                const popupToClose = document.getElementById('booking-dispatch-popup');
+                if (popupToClose) popupToClose.remove();
+            }, 30000);
+        }
+    });
+
+    // 3. Admin Emergency SOS Receiver
+    socket.on('sos_triggered', (data) => {
+        const adminDashboard = document.getElementById('admin-dashboard-console');
+        if (adminDashboard) {
+            console.log("Emergency SOS Alert received:", data);
+            
+            // Create a top flashing emergency alert banner
+            const sosBanner = document.createElement('div');
+            sosBanner.className = 'alert alert-danger';
+            sosBanner.style.position = 'fixed';
+            sosBanner.style.top = '10px';
+            sosBanner.style.left = '50%';
+            sosBanner.style.transform = 'translateX(-50%)';
+            sosBanner.style.zIndex = '9999';
+            sosBanner.style.width = '90%';
+            sosBanner.style.maxWidth = '800px';
+            sosBanner.style.boxShadow = '0 0 20px rgba(220, 38, 38, 0.8)';
+            sosBanner.style.animation = 'pulse 1.5s infinite';
+            
+            sosBanner.innerHTML = `
+                <div style="flex-grow: 1;">
+                    <strong>🚨 EMERGENCY SOS ACTIVE</strong> | Customer: ${data.customer_name} (${data.customer_phone}) <br>
+                    <strong>Trip:</strong> ${data.pickup} to ${data.destination} <br>
+                    <strong>Coordinates:</strong> Lat ${data.latitude}, Lng ${data.longitude} | <strong>Driver:</strong> ${data.driver_name} (${data.driver_phone})
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button onclick="window.location.reload();" class="btn btn-sm btn-primary">Refresh Console</button>
+                    <span class="alert-close">&times;</span>
+                </div>
+            `;
+            
+            document.body.appendChild(sosBanner);
+            
+            // Handle alert dismiss
+            sosBanner.querySelector('.alert-close').addEventListener('click', function() {
+                sosBanner.remove();
+            });
+        }
+    });
+});
