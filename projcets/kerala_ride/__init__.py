@@ -1,28 +1,27 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from flask import Flask, render_template, session
 from flask_login import LoginManager
 from flask_socketio import SocketIO
-from kerala_ride.models import db, User, Driver, Vehicle, PromoOffer, SavedLocation, EmergencyContact, FareConfig
+from flask_sqlalchemy import SQLAlchemy
 
-# 1. Initialize external extensions
+# 1. Initialize extensions right at the top level
+db = SQLAlchemy()
 socketio = SocketIO(cors_allowed_origins="*", async_mode='threading')
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Please log in to access this page.'
 login_manager.login_message_category = 'warning'
 
-
 @login_manager.user_loader
 def load_user(user_id):
-    """Callback used to reload the user object from the user ID stored in the session."""
+    # Import inside function to prevent early database binding loops
+    from kerala_ride.models import User
     return db.session.get(User, int(user_id))
 
-
 def now_utc():
-    """Helper method to return timezone-naive UTC datetime safely."""
-    return datetime.utcnow()
-
+    """Helper method to return timezone-naive UTC datetime safely for SQLite."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 def create_app(test_config=None):
     """Application factory function to configure and initialize the Flask application."""
@@ -44,12 +43,12 @@ def create_app(test_config=None):
     # Ensure upload directory exists
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-    # 3. Bind extensions to the application instance
+    # 3. Bind extensions to the application instance context
     db.init_app(app)
     login_manager.init_app(app)
     socketio.init_app(app)
 
-    # Automatically build missing database tables upon initialization
+    # Automatically build missing database tables safely inside application context
     with app.app_context():
         db.create_all()
 
@@ -86,7 +85,6 @@ def create_app(test_config=None):
         seed_database(app)
 
     # --- MASTER VEHICLE CATEGORY LISTS ---
-    # These lists dictate what shows up in the dropdowns for customers, drivers, and admins
     PASSENGER_VEHICLES = [
         "Auto Rickshaw",
         "Taxi",
@@ -123,6 +121,9 @@ def create_app(test_config=None):
 def seed_database(app):
     """Seeds the database with default sample records for users, drivers, and promotions."""
     with app.app_context():
+        # Delayed model imports inside the function completely avoid circular loading errors!
+        from kerala_ride.models import User, Driver, Vehicle, PromoOffer, SavedLocation, EmergencyContact, FareConfig
+        
         db.create_all()
 
         if User.query.first() is not None:
@@ -143,12 +144,11 @@ def seed_database(app):
         db.session.flush()
 
         loc_home = SavedLocation(user_id=customer.id, label="Home", address="Nair Villa, Kakkanad, Kochi, Ernakulam")
-        loc_work = SavedLocation(user_id=customer.id, label="Work",
-                                 address="Infopark Phase 1, Kakkanad, Kochi, Ernakulam")
+        loc_work = SavedLocation(user_id=customer.id, label="Work", address="Infopark Phase 1, Kakkanad, Kochi, Ernakulam")
         contact_sos = EmergencyContact(user_id=customer.id, name="Suresh Nair (Father)", phone="9447098765")
         db.session.add_all([loc_home, loc_work, contact_sos])
 
-        # 3. Seed Verified Partner Driver 1
+        # 3. Seed Verified Partner Driver 1 (Auto)
         driver1_user = User(email="driver@keralaride.com", name="Hari Kumar", phone="9847055667", role="driver")
         driver1_user.set_password("driver123")
         db.session.add(driver1_user)
@@ -179,7 +179,7 @@ def seed_database(app):
         )
         db.session.add(vehicle1)
 
-        # 4. Seed Pending Partner Driver 2
+        # 4. Seed Pending Partner Driver 2 (Taxi/Dzire)
         driver2_user = User(email="driver2@keralaride.com", name="Mohan Lal", phone="9845612345", role="driver")
         driver2_user.set_password("driver123")
         db.session.add(driver2_user)
@@ -210,7 +210,14 @@ def seed_database(app):
         )
         db.session.add(vehicle2)
 
-        # 5. Seed Promo Offers
+        # 5. Seed Core Base Fare Configurations matching your master lists
+        config_auto = FareConfig(vehicle_category="Auto Rickshaw", base_fare=40.0, base_distance_km=1.5, rate_per_km=12.0)
+        config_taxi = FareConfig(vehicle_category="Taxi", base_fare=60.0, base_distance_km=3.0, rate_per_km=15.0)
+        config_suv = FareConfig(vehicle_category="8-Seater SUV", base_fare=100.0, base_distance_km=5.0, rate_per_km=22.0)
+        config_truck = FareConfig(vehicle_category="Mini Truck", base_fare=150.0, base_distance_km=5.0, rate_per_km=25.0)
+        db.session.add_all([config_auto, config_taxi, config_suv, config_truck])
+
+        # 6. Seed Promo Offers
         promo1 = PromoOffer(
             code="KERALA50",
             description="Get 50% off on your first trip (Up to ₹100)",
@@ -226,4 +233,4 @@ def seed_database(app):
         db.session.add_all([promo1, promo2])
 
         db.session.commit()
-        print("Database seeded successfully with users and dynamic rules!")
+        print("Database seeded successfully with explicit configurations and models!")
