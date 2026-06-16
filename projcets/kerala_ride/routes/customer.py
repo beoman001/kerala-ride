@@ -4,12 +4,12 @@ from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import login_required, current_user
 from kerala_ride import db
-from kerala_ride.models import Booking, SavedLocation, FareConfig, PromoOffer
+from kerala_ride.models import Booking, SavedLocation, FareConfig, PromoOffer, EmergencyContact
 
 customer_bp = Blueprint('customer', __name__, url_prefix='/customer')
 
 def now_utc():
-    """Helper method to return timezone-naive UTC datetime safely for SQLite."""
+    """Helper method to return timezone-aware UTC datetime safely for SQLite."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
@@ -37,7 +37,7 @@ def book():
             return redirect(url_for('customer.book'))
 
         try:
-            # Map parameters perfectly to your database model
+            # Map parameters perfectly to your database model columns
             new_booking = Booking(
                 customer_id=current_user.id,
                 type=booking_type,
@@ -115,7 +115,7 @@ def estimate_fare():
         print(f"OSRM Routing Server Failure: {e}")
         return jsonify({"success": False, "error": "Free routing engine timed out."}), 500
 
-    # Default application presets fallback if database configs are clear
+    # Default application presets fallback if database configs are empty
     base_fare = 60.0
     base_distance = 3.0
     rate_per_km = 15.0
@@ -160,18 +160,17 @@ def estimate_fare():
             forward_fare = base_fare + (billable_extra_km * rate_per_km)
 
     # 3. UNIVERSAL RETURN CHARGE SAFETY BOUNDARY FOR ALL VEHICLES
-    # Change 15.0 to whatever kilometer limit makes a ride count as "local" vs "long-trip"
+    # Return charge drops completely to zero if trip stays within this local limit
     MIN_KM_FOR_RETURN = 15.0 
 
     if distance_km > 500.0:
         is_outstation = True
-        # Extreme long haul: Driver receives flat km compensation rate back
         return_charge = distance_km * rate_per_km
     elif distance_km > MIN_KM_FOR_RETURN:
         # Long trip triggered: Return fee matches forward fare across the system
         return_charge = forward_fare
     else:
-        # Short local trip under the line: RETURN CHARGE DRIPPED COMPLETELY TO ZERO
+        # Short local trip under the threshold: Return charges dropped completely to zero!
         print(f"RESULT: Trip (≤ {MIN_KM_FOR_RETURN}km) is local. Zeroing return charges.")
         return_charge = 0.0
 
@@ -252,4 +251,64 @@ def cancel_ride(booking_id):
         flash("Your ride has been cancelled successfully.", "success")
 
     db.session.commit()
+    return redirect(url_for('customer.dashboard'))
+
+
+# ==========================================
+# 4. SAVE NEW LOCATION ROUTE (FIX FOR BUILDERROR)
+# ==========================================
+@customer_bp.route('/add-location', methods=['POST'])
+@login_required
+def add_location():
+    label = request.form.get('label', '').strip()
+    address = request.form.get('address', '').strip()
+
+    if not label or not address:
+        flash("Label and Address parameters are required.", "danger")
+        return redirect(url_for('customer.book'))
+
+    try:
+        new_loc = SavedLocation(
+            user_id=current_user.id,
+            label=label,
+            address=address
+        )
+        db.session.add(new_loc)
+        db.session.commit()
+        flash("Location saved successfully!", "success")
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error saving location parameters: {e}")
+        flash("Could not save location configurations.", "danger")
+
+    return redirect(url_for('customer.book'))
+
+
+# ==========================================
+# 5. ADD EMERGENCY CONTACT ROUTE (FIX FOR BUILDERROR)
+# ==========================================
+@customer_bp.route('/add-contact', methods=['POST'])
+@login_required
+def add_contact():
+    contact_name = request.form.get('contact_name', '').strip()
+    contact_phone = request.form.get('contact_phone', '').strip()
+
+    if not contact_name or not contact_phone:
+        flash("Contact Name and Phone Number are required fields.", "danger")
+        return redirect(url_for('customer.dashboard'))
+
+    try:
+        new_contact = EmergencyContact(
+            user_id=current_user.id,
+            name=contact_name,
+            phone=contact_phone
+        )
+        db.session.add(new_contact)
+        db.session.commit()
+        flash("Emergency contact added successfully!", "success")
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error saving emergency contact structural values: {e}")
+        flash("Could not save the requested contact configuration.", "danger")
+
     return redirect(url_for('customer.dashboard'))
