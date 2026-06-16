@@ -1,232 +1,222 @@
+import os
+import requests
 from datetime import datetime, timezone
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from flask_login import login_required, current_user
+from kerala_ride import db
+from kerala_ride.models import Booking, SavedLocation, FareConfig, PromoOffer
 
-db = SQLAlchemy()
-
+customer_bp = Blueprint('customer', __name__, url_prefix='/customer')
 
 def now_utc():
-    """Helper to return timezone-aware UTC datetime."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)  # SQLite-safe naive UTC
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+# ==========================================
+# 1. CUSTOMER BOOKING PAGE ROUTE
+# ==========================================
+@customer_bp.route('/book', methods=['GET', 'POST'])
+@login_required
+def book():
+    if request.method == 'POST':
+        booking_type = request.form.get('booking_type', 'passenger')
+        pickup = request.form.get('pickup', '').strip()
+        destination = request.form.get('destination', '').strip()
+        vehicle_category = request.form.get('vehicle_category')
+        payment_method = request.form.get('payment_method', 'Cash')
+        promo_code = request.form.get('promo_code', '').strip().upper()
+        estimated_fare = request.form.get('estimated_fare', 0.0)
+
+        # Goods cargo details
+        material_description = request.form.get('material_description', '').strip()
+        weight = request.form.get('weight')
+
+        if not pickup or not destination or not vehicle_category:
+            flash("Please fill in all required fields.", "danger")
+            return redirect(url_for('customer.book'))
+
+        try:
+            # Mapped cleanly to your specific relational database schemas!
+            new_booking = Booking(
+                customer_id=current_user.id,
+                type=booking_type,
+                pickup_location=pickup,
+                destination_location=destination,
+                vehicle_category=vehicle_category,
+                payment_method=payment_method,
+                estimated_fare=float(estimated_fare),
+                material_description=material_description if booking_type == 'goods' else None,
+                weight=float(weight) if (booking_type == 'goods' and weight) else None,
+                status="Pending"
+            )
+
+            db.session.add(new_booking)
+            db.session.commit()
+            flash("Your ride request has been submitted successfully!", "success")
+            return redirect(url_for('customer.dashboard'))
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"Database Insertion Error: {e}")
+            flash("An error occurred while creating your booking. Please try again.", "danger")
+            return redirect(url_for('customer.book'))
+
+    locations = []
+    try:
+        locations = SavedLocation.query.filter_by(user_id=current_user.id).all()
+    except Exception as e:
+        print(f"Error loading saved locations: {e}")
+
+    return render_template('customer/book.html', locations=locations)
 
 
-class User(db.Model, UserMixin):
-    __tablename__ = 'users'
+# ==========================================
+# 2. FREE OPENSTREETMAP FARE ESTIMATOR
+# ==========================================
+@customer_bp.route('/estimate-fare', methods=['POST'])
+@login_required
+def estimate_fare():
+    data = request.get_json()
+    if not data:
+        return jsonify({"success": False, "error": "Invalid payload configuration."}), 400
 
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
-    name = db.Column(db.String(100), nullable=False)
-    phone = db.Column(db.String(20), nullable=False)
-    role = db.Column(db.String(20), default='customer')  # 'customer', 'driver', 'admin'
-    created_at = db.Column(db.DateTime, default=now_utc)
+    pickup = data.get('pickup', '').strip()
+    destination = data.get('destination', '').strip()
+    category = data.get('category')
+    promo_code = data.get('promo_code', '').strip().upper()
 
-    # Relationships
-    driver_profile = db.relationship('Driver', back_populates='user', uselist=False, cascade="all, delete-orphan")
-    bookings_as_customer = db.relationship('Booking', foreign_keys='Booking.customer_id', back_populates='customer')
-    saved_locations = db.relationship('SavedLocation', back_populates='user', cascade="all, delete-orphan")
-    emergency_contacts = db.relationship('EmergencyContact', back_populates='user', cascade="all, delete-orphan")
-    audit_logs = db.relationship('AuditLog', back_populates='user')
+    if not pickup or not destination or not category:
+        return jsonify({"success": False, "error": "Missing pickup, dropoff, or vehicle parameters."}), 400
 
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+    route_geometry = None
+    try:
+        pickup_parts = pickup.split(',')
+        dest_parts = destination.split(',')
+        
+        if len(pickup_parts) != 2 or len(dest_parts) != 2:
+            return jsonify({"success": False, "error": "Please choose precise locations from the interactive map canvas."}), 400
 
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        pickup_lng_lat = f"{pickup_parts[1].strip()},{pickup_parts[0].strip()}"
+        dest_lng_lat = f"{dest_parts[1].strip()},{dest_parts[0].strip()}"
 
-    def __repr__(self):
-        return f'<User {self.id} | {self.name} | {self.role}>'
+        url = f"http://router.project-osrm.org/route/v1/driving/{pickup_lng_lat};{dest_lng_lat}"
+        response = requests.get(url, params={"overview": "full", "geometries": "geojson"}, timeout=5)
+        res_data = response.json()
 
+        if res_data.get('code') == 'Ok':
+            distance_meters = res_data['routes'][0]['distance']
+            distance_km = round(distance_meters / 1000.0, 1)
+            route_geometry = res_data['routes'][0]['geometry']
+        else:
+            return jsonify({"success": False, "error": "Could not map a driving route layout."}), 400
 
-class Driver(db.Model):
-    __tablename__ = 'drivers'
+    except Exception as e:
+        print(f"OSRM Routing Server Failure: {e}")
+        return jsonify({"success": False, "error": "Free routing engine timed out."}), 500
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True, nullable=False)
-    district = db.Column(db.String(50), nullable=False)
-    local_body_type = db.Column(db.String(20), nullable=False)  # Panchayat, Municipality, Corporation
-    local_body_name = db.Column(db.String(100), nullable=False)
-    license_number = db.Column(db.String(50), nullable=False)
-    permit_number = db.Column(db.String(50), nullable=False)
-    is_online = db.Column(db.Boolean, default=False)
+    # Default application fallbacks
+    base_fare = 60.0
+    base_distance = 3.0
+    rate_per_km = 15.0
 
-    verification_status = db.Column(db.String(20), default='Pending')  # Pending, Approved, Rejected
-    rejection_reason = db.Column(db.String(255), nullable=True)
+    try:
+        fare_config = FareConfig.query.filter_by(vehicle_category=category).first()
+        if fare_config:
+            base_fare = float(fare_config.base_fare)
+            base_distance = float(fare_config.base_distance_km)
+            rate_per_km = float(fare_config.rate_per_km)
+    except Exception as db_err:
+        print(f"Database check exception, relying on presets: {db_err}")
 
-    # Document upload paths
-    photo_path = db.Column(db.String(255), nullable=True)
-    license_path = db.Column(db.String(255), nullable=True)
-    rc_path = db.Column(db.String(255), nullable=True)
-    permit_path = db.Column(db.String(255), nullable=True)
-    insurance_path = db.Column(db.String(255), nullable=True)
-    pollution_path = db.Column(db.String(255), nullable=True)
-    yellow_board_photo_path = db.Column(db.String(255), nullable=True)
-    vehicle_images_path = db.Column(db.String(255), nullable=True)
+    # Step-by-Step pricing calculation
+    if distance_km <= base_distance:
+        forward_fare = base_fare
+    else:
+        forward_fare = base_fare + ((distance_km - base_distance) * rate_per_km)
 
-    created_at = db.Column(db.DateTime, default=now_utc)
+    # Dynamic Return Fee Boundary Layer Configuration
+    MIN_KM_FOR_RETURN = 15.0 
+    is_outstation = False
+    return_charge = 0.0
 
-    # Relationships
-    user = db.relationship('User', back_populates='driver_profile')
-    vehicles = db.relationship('Vehicle', back_populates='driver', cascade="all, delete-orphan")
-    bookings_as_driver = db.relationship('Booking', foreign_keys='Booking.driver_id', back_populates='driver')
+    if distance_km > 500.0:
+        is_outstation = True
+        return_charge = distance_km * rate_per_km
+    elif distance_km > MIN_KM_FOR_RETURN:
+        return_charge = forward_fare
+    else:
+        return_charge = 0.0
 
-    @property
-    def is_approved(self):
-        return self.verification_status == 'Approved'
+    final_fare = forward_fare + return_charge
 
-    def __repr__(self):
-        return f'<Driver {self.id} | {self.user.name if self.user else "?"} | {self.verification_status}>'
+    # Promo Offer Relational System Check
+    discount = 0.0
+    if promo_code:
+        try:
+            promo = PromoOffer.query.filter_by(code=promo_code).first()
+            if promo and not promo.is_expired:
+                discount = round(final_fare * (promo.discount_percentage / 100.0), 2)
+                final_fare -= discount
+        except Exception as promo_err:
+            print(f"Promo extraction check failure: {promo_err}")
 
+    final_fare = max(0.0, round(final_fare, 2))
 
-class Vehicle(db.Model):
-    __tablename__ = 'vehicles'
-
-    id = db.Column(db.Integer, primary_key=True)
-    driver_id = db.Column(db.Integer, db.ForeignKey('drivers.id'), nullable=False)
-    category = db.Column(db.String(50), nullable=False)
-    brand = db.Column(db.String(50), nullable=False)
-    model = db.Column(db.String(50), nullable=False)
-    plate_number = db.Column(db.String(30), unique=True, nullable=False)
-    seating_capacity = db.Column(db.Integer, nullable=False)
-    manufacture_year = db.Column(db.Integer, nullable=False)
-    verification_status = db.Column(db.String(20), default='Pending')  # Pending, Approved, Rejected
-
-    # Relationships
-    driver = db.relationship('Driver', back_populates='vehicles')
-
-    def __repr__(self):
-        return f'<Vehicle {self.plate_number} | {self.category} | {self.brand} {self.model}>'
-
-
-class Booking(db.Model):
-    __tablename__ = 'bookings'
-
-    id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    driver_id = db.Column(db.Integer, db.ForeignKey('drivers.id'), nullable=True)
-    type = db.Column(db.String(20), nullable=False)  # 'passenger', 'goods'
-
-    pickup_location = db.Column(db.String(255), nullable=False)
-    destination_location = db.Column(db.String(255), nullable=False)
-    vehicle_category = db.Column(db.String(50), nullable=False)
-    estimated_fare = db.Column(db.Float, nullable=False)
-    final_fare = db.Column(db.Float, nullable=True)
-
-    status = db.Column(db.String(30), default='Pending')
-    # Pending, Accepted, Arrived, Active, Completed, Cancelled
-
-    otp = db.Column(db.String(4), nullable=True)
-
-    # Goods-specific details
-    material_description = db.Column(db.Text, nullable=True)
-    weight = db.Column(db.Float, nullable=True)
-
-    payment_method = db.Column(db.String(20), default='Cash')  # Cash, UPI, Google Pay, PhonePe
-
-    created_at = db.Column(db.DateTime, default=now_utc)
-    completed_at = db.Column(db.DateTime, nullable=True)
-
-    # Relationships
-    customer = db.relationship('User', foreign_keys=[customer_id], back_populates='bookings_as_customer')
-    driver = db.relationship('Driver', foreign_keys=[driver_id], back_populates='bookings_as_driver')
-    sos_alerts = db.relationship('SOSAlert', back_populates='booking', cascade="all, delete-orphan")
-
-    @property
-    def display_fare(self):
-        """Returns final_fare if completed, else estimated_fare."""
-        return self.final_fare if self.final_fare else self.estimated_fare
-
-    def __repr__(self):
-        return f'<Booking {self.id} | {self.type} | {self.status}>'
+    return jsonify({
+        "success": True,
+        "distance_km": distance_km,
+        "base_fare": base_fare,
+        "base_distance": base_distance,
+        "rate_per_km": rate_per_km,
+        "return_charge": return_charge,
+        "discount": discount,
+        "final_fare": final_fare,
+        "promo_applied": True if discount > 0 else False,
+        "is_outstation": is_outstation,
+        "route_geometry": route_geometry
+    })
 
 
-class SavedLocation(db.Model):
-    __tablename__ = 'saved_locations'
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    label = db.Column(db.String(50), nullable=False)
-    address = db.Column(db.String(255), nullable=False)
-
-    user = db.relationship('User', back_populates='saved_locations')
-
-    def __repr__(self):
-        return f'<SavedLocation {self.label}: {self.address[:30]}>'
-
-
-class EmergencyContact(db.Model):
-    __tablename__ = 'emergency_contacts'
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    name = db.Column(db.String(100), nullable=False)
-    phone = db.Column(db.String(20), nullable=False)
-
-    user = db.relationship('User', back_populates='emergency_contacts')
-
-    def __repr__(self):
-        return f'<EmergencyContact {self.name} | {self.phone}>'
+# ==========================================
+# 3. CUSTOMER DASHBOARD & CANCELLATION ENGINE
+# ==========================================
+@customer_bp.route('/dashboard')
+@login_required
+def dashboard():
+    try:
+        user_bookings = Booking.query.filter_by(customer_id=current_user.id).order_by(Booking.id.desc()).all()
+    except Exception as e:
+        print(f"Error loading dashboard bookings: {e}")
+        user_bookings = []
+    return render_template('customer/dashboard.html', bookings=user_bookings)
 
 
-class PromoOffer(db.Model):
-    __tablename__ = 'promo_offers'
+@customer_bp.route('/cancel-ride/<int:booking_id>', methods=['POST'])
+@login_required
+def cancel_ride(booking_id):
+    booking = Booking.query.get_or_404(booking_id)
+    
+    if booking.customer_id != current_user.id:
+        flash("Unauthorized action.", "danger")
+        return redirect(url_for('customer.dashboard'))
 
-    id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(30), unique=True, nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    discount_percentage = db.Column(db.Float, nullable=False)
-    expiry_date = db.Column(db.DateTime, nullable=False)
-    created_at = db.Column(db.DateTime, default=now_utc)
+    if booking.status != "Pending":
+        flash("You can only cancel rides that are currently Pending.", "warning")
+        return redirect(url_for('customer.dashboard'))
 
-    @property
-    def is_expired(self):
-        return self.expiry_date < now_utc()
+    try:
+        minutes_passed = (now_utc() - booking.created_at).total_seconds() / 60.0
+    except Exception:
+        minutes_passed = 0
 
-    def __repr__(self):
-        return f'<PromoOffer {self.code} | {self.discount_percentage}% | expires {self.expiry_date.date()}>'
+    if minutes_passed > 15.0:
+        penalty = round(float(booking.estimated_fare) * 0.25, 2)
+        booking.status = "Cancelled"
+        booking.final_fare = penalty  # Storing the penalty cost into your final_fare field
+        flash(f"Ride cancelled. A 1/4 grace penalty (₹{penalty}) has been applied.", "info")
+    else:
+        booking.status = "Cancelled"
+        booking.final_fare = 0.0
+        flash("Your ride has been cancelled successfully.", "success")
 
-
-class AuditLog(db.Model):
-    __tablename__ = 'audit_logs'
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    action = db.Column(db.String(100), nullable=False)
-    details = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=now_utc)
-
-    user = db.relationship('User', back_populates='audit_logs')
-
-    def __repr__(self):
-        return f'<AuditLog {self.action} at {self.created_at}>'
-
-
-class SOSAlert(db.Model):
-    __tablename__ = 'sos_alerts'
-
-    id = db.Column(db.Integer, primary_key=True)
-    booking_id = db.Column(db.Integer, db.ForeignKey('bookings.id'), nullable=False)
-    latitude = db.Column(db.Float, nullable=False)
-    longitude = db.Column(db.Float, nullable=False)
-    triggered_at = db.Column(db.DateTime, default=now_utc)
-    status = db.Column(db.String(20), default='Active')  # Active, Resolved
-
-    booking = db.relationship('Booking', back_populates='sos_alerts')
-
-    def __repr__(self):
-        return f'<SOSAlert {self.id} | Booking {self.booking_id} | {self.status}>'
-
-
-class FareConfig(db.Model):
-    __tablename__ = 'fare_configs'
-
-    id = db.Column(db.Integer, primary_key=True)
-    vehicle_category = db.Column(db.String(50), unique=True, nullable=False)
-    base_fare = db.Column(db.Float, nullable=False)
-    base_distance_km = db.Column(db.Float, nullable=False)
-    rate_per_km = db.Column(db.Float, nullable=False)
-    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
-
-    def __repr__(self):
-        return f'<FareConfig {self.vehicle_category} | ₹{self.base_fare} base | ₹{self.rate_per_km}/km>'
+    db.session.commit()
+    return redirect(url_for('customer.dashboard'))
