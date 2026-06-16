@@ -72,7 +72,7 @@ def book():
 
 
 # ==========================================
-# 2. FREE OPENSTREETMAP FARE ESTIMATOR
+# 2. DYNAMIC FARE ESTIMATOR (ADMIN-CONTROLLED LOGIC)
 # ==========================================
 @customer_bp.route('/estimate-fare', methods=['POST'])
 @login_required
@@ -115,69 +115,52 @@ def estimate_fare():
         print(f"OSRM Routing Server Failure: {e}")
         return jsonify({"success": False, "error": "Free routing engine timed out."}), 500
 
-    # Default application presets fallback if database configs are empty
-    base_fare = 60.0
-    base_distance = 3.0
-    rate_per_km = 15.0
+    # Default fallback rulesets if admin hasn't set custom database entries yet
+    admin_base_fare = 60.0
+    admin_minimum_km = 3.0
+    admin_rate_per_km = 15.0
 
     try:
+        # Pull the live parameters set by the admin for this specific vehicle category
         fare_config = FareConfig.query.filter_by(vehicle_category=category).first()
         if fare_config:
-            base_fare = float(fare_config.base_fare)
-            base_distance = float(fare_config.base_distance_km)
-            rate_per_km = float(fare_config.rate_per_km)
+            admin_base_fare = float(fare_config.base_fare)
+            admin_minimum_km = float(fare_config.base_distance_km)  # This acts as the admin-defined minimum limit
+            admin_rate_per_km = float(fare_config.rate_per_km)
     except Exception as db_err:
         print(f"Database check exception, relying on presets: {db_err}")
 
-    # ==========================================
-    # STEP-BY-STEP FARE COMPUTATION (GLOBAL MINIMUM KM BLOCK)
-    # ==========================================
-    print(f"\n--- DEBUG: UNIVERSAL FARE CALCULATION ---")
-    print(f"Calculated Road Distance: {distance_km} km")
-    print(f"Selected Category: {category}")
-    
+    print(f"\n--- DEBUG: ADMIN-DRIVEN FARE CALCULATOR ---")
+    print(f"Vehicle Category: {category} | Distance Matrix: {distance_km} km")
+    print(f"Admin Configs -> Flat Base Charge: ₹{admin_base_fare} | Below Minimum Limit: {admin_minimum_km} km")
+
     forward_fare = 0.0
     return_charge = 0.0
     is_outstation = False
 
-    # 1. SPECIAL CASE PACKAGE FOR 8-SEATER SUV (UP TO 80 KM PACKAGE)
-    if category == "8-Seater SUV":
-        FIXED_MAX_KM = 80.0
-        FIXED_PRICE = 3500.0
+    # 1. APPLY ADMIN MINIMUM LIMIT GAUNTLET (SAME FOR EVERY VEHICLE)
+    if distance_km <= admin_minimum_km:
+        # If distance is under or equal to the admin limit, force the absolute exact base charge flat
+        print(f"RESULT: Distance is below minimum limit. Locking forward fare to base: ₹{admin_base_fare}")
+        forward_fare = admin_base_fare
+        return_charge = 0.0  # Absolutely zero return charges apply inside the admin boundary limit
+    else:
+        # If distance breaks past the admin limit, charge the base price + extra mileage
+        print(f"RESULT: Distance exceeds minimum limit. Appending extra mileage meters.")
+        billable_extra_km = distance_km - admin_minimum_km
+        forward_fare = admin_base_fare + (billable_extra_km * admin_rate_per_km)
         
-        if distance_km <= FIXED_MAX_KM:
-            forward_fare = FIXED_PRICE
+        # Long run triggered: Return journey compensation applies to protect driver economics
+        if distance_km > 500.0:
+            is_outstation = True
+            return_charge = distance_km * admin_rate_per_km
         else:
-            extra_km = distance_km - FIXED_MAX_KM
-            forward_fare = FIXED_PRICE + (extra_km * rate_per_km)
-            
-    # 2. STANDARD PRICING METHOD FOR ALL OTHER VEHICLE FIELDS
-    else:
-        if distance_km <= base_distance:
-            forward_fare = base_fare
-        else:
-            billable_extra_km = distance_km - base_distance
-            forward_fare = base_fare + (billable_extra_km * rate_per_km)
+            return_charge = forward_fare
 
-    # 3. UNIVERSAL RETURN CHARGE SAFETY BOUNDARY FOR ALL VEHICLES
-    # Return charge drops completely to zero if trip stays within this local limit
-    MIN_KM_FOR_RETURN = 15.0 
-
-    if distance_km > 500.0:
-        is_outstation = True
-        return_charge = distance_km * rate_per_km
-    elif distance_km > MIN_KM_FOR_RETURN:
-        # Long trip triggered: Return fee matches forward fare across the system
-        return_charge = forward_fare
-    else:
-        # Short local trip under the threshold: Return charges dropped completely to zero!
-        print(f"RESULT: Trip (≤ {MIN_KM_FOR_RETURN}km) is local. Zeroing return charges.")
-        return_charge = 0.0
-
-    # 4. COMBINE SUB-COMPONENTS FOR TOTAL FARE
+    # 2. COMBINE SYSTEM COMPONENT PILLARS
     final_fare = forward_fare + return_charge
 
-    # Promo Offer System Checks
+    # Promo Offer System Validation Layer
     discount = 0.0
     if promo_code:
         try:
@@ -190,15 +173,15 @@ def estimate_fare():
 
     final_fare = max(0.0, round(final_fare, 2))
 
-    print(f"Forward Base: {forward_fare} | Return Loop Cost: {return_charge} | Final: {final_fare}")
-    print(f"-----------------------------------\n")
+    print(f"Forward Step: ₹{forward_fare} | Return Step: ₹{return_charge} | Final Payable: ₹{final_fare}")
+    print(f"-----------------------------------------\n")
 
     return jsonify({
         "success": True,
         "distance_km": distance_km,
-        "base_fare": base_fare,
-        "base_distance": base_distance,
-        "rate_per_km": rate_per_km,
+        "base_fare": admin_base_fare,
+        "base_distance": admin_minimum_km,
+        "rate_per_km": admin_rate_per_km,
         "return_charge": return_charge,
         "discount": discount,
         "final_fare": final_fare,
@@ -255,7 +238,7 @@ def cancel_ride(booking_id):
 
 
 # ==========================================
-# 4. SAVE NEW LOCATION ROUTE (FIX FOR BUILDERROR)
+# 4. SAVE NEW LOCATION ROUTE
 # ==========================================
 @customer_bp.route('/add-location', methods=['POST'])
 @login_required
@@ -285,7 +268,7 @@ def add_location():
 
 
 # ==========================================
-# 5. ADD EMERGENCY CONTACT ROUTE (FIX FOR BUILDERROR)
+# 5. ADD EMERGENCY CONTACT ROUTE
 # ==========================================
 @customer_bp.route('/add-contact', methods=['POST'])
 @login_required
