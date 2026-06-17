@@ -54,7 +54,11 @@ def create_app(test_config=None):
     # Automatically build missing database tables safely inside application context
     with app.app_context():
         from kerala_ride import models  # Forces SQLAlchemy to scan models cleanly
-        db.create_all()
+        
+        # --- CRITICAL FIX: WIPE AND REBUILD DATABASE ---
+        db.drop_all()   # Deletes the old broken tables
+        db.create_all() # Rebuilds them with the correct 255-character limits!
+        print("🚀 Database wiped and rebuilt with new character limits!")
 
     # --- SECURITY: Force session to use the strict 30-min timeout timer ---
     @app.before_request
