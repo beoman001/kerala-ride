@@ -88,6 +88,9 @@ def create_app(test_config=None):
     app.register_blueprint(driver_bp, url_prefix='/driver')
     app.register_blueprint(admin_bp, url_prefix='/admin')
 
+    # 🛡️ EXEMPT ADMIN BLUEPRINT ROUTING MATRIX FROM CSRF VALIDATION WALLS
+    csrf.exempt(admin_bp)
+
     # Custom HTTP error handlers
     @app.errorhandler(404)
     def not_found(e):
