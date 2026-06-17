@@ -10,6 +10,9 @@
             <p style="text-align: center; color: var(--text-muted); font-size: 14px; margin-bottom: 24px;">Sign up as a passenger/cargo dispatcher</p>
             
             <form action="{{ url_for('auth.register') }}" method="POST">
+                
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                
                 <div class="form-group">
                     <label class="form-label" for="name">Full Name</label>
                     <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Rahul Nair" required>
