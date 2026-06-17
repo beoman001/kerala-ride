@@ -17,12 +17,17 @@ def save_uploaded_file(file, driver_id, doc_type):
     if not file or file.filename == '':
         return None
     if allowed_file(file.filename):
+        # Secure the original filename to prevent directory traversal attacks
+        safe_filename = secure_filename(file.filename)
         driver_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], f'driver_{driver_id}')
         os.makedirs(driver_dir, exist_ok=True)
-        ext = file.filename.rsplit('.', 1)[1].lower()
-        filename = f"{doc_type}_{driver_id}.{ext}"
-        file.save(os.path.join(driver_dir, filename))
-        return f"uploads/driver_{driver_id}/{filename}"
+        
+        ext = safe_filename.rsplit('.', 1)[1].lower()
+        # Rename to a standard format so files don't overwrite each other randomly
+        new_filename = f"{doc_type}_{driver_id}.{ext}"
+        file.save(os.path.join(driver_dir, new_filename))
+        
+        return f"uploads/driver_{driver_id}/{new_filename}"
     return None
 
 
@@ -36,10 +41,12 @@ def login():
         return redirect(url_for('customer.dashboard'))
 
     if request.method == 'POST':
+        # .lower() ensures case-insensitivity so mobile users don't get locked out by Auto-Caps
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         remember = bool(request.form.get('remember'))
 
+        # Find user and securely check the full 255-character hash
         user = User.query.filter_by(email=email).first()
         if not user or not user.check_password(password):
             flash('Invalid email or password. Please try again.', 'danger')
@@ -47,6 +54,7 @@ def login():
 
         login_user(user, remember=remember)
 
+        # Route user to their specific dashboard based on role
         if user.role == 'admin':
             return redirect(url_for('admin.dashboard'))
         elif user.role == 'driver':
@@ -54,6 +62,7 @@ def login():
             if driver_profile and driver_profile.verification_status != 'Approved':
                 flash(f"Your driver account is currently: {driver_profile.verification_status}. You'll have restricted access until approved.", "warning")
             return redirect(url_for('driver.dashboard'))
+        
         return redirect(url_for('customer.dashboard'))
 
     return render_template('login.html')
@@ -82,7 +91,7 @@ def register():
             return redirect(url_for('auth.register'))
 
         new_user = User(email=email, name=name, phone=phone, role='customer')
-        new_user.set_password(password)
+        new_user.set_password(password) # This now safely generates the sha256 hash
         db.session.add(new_user)
         db.session.commit()
 
@@ -132,7 +141,7 @@ def driver_register():
         db.session.add(new_driver)
         db.session.flush()
 
-        # Handle document uploads
+        # Handle document uploads safely
         new_driver.photo_path = save_uploaded_file(request.files.get('photo'), new_driver.id, 'photo')
         new_driver.license_path = save_uploaded_file(request.files.get('license'), new_driver.id, 'license')
         new_driver.rc_path = save_uploaded_file(request.files.get('rc'), new_driver.id, 'rc')
