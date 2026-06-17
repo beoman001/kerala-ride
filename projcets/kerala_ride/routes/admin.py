@@ -32,6 +32,7 @@ def dashboard():
     approved_drivers = Driver.query.filter_by(verification_status='Approved').count()
     pending_approvals = Driver.query.filter_by(verification_status='Pending').count()
     total_bookings = Booking.query.count()
+    total_tickets = SupportTicket.query.count()
 
     completed_bookings = Booking.query.filter_by(status='Completed').all()
     total_revenue = sum((b.final_fare or b.estimated_fare) for b in completed_bookings)
@@ -50,6 +51,7 @@ def dashboard():
         approved_drivers=approved_drivers,
         pending_approvals=pending_approvals,
         total_bookings=total_bookings,
+        total_tickets=total_tickets,
         total_revenue=round(total_revenue, 2),
         active_sos=active_sos,
         recent_logs=recent_logs,
@@ -219,9 +221,6 @@ def manage_fares():
     return render_template('admin/fares.html', configs=configs)
 
 
-# ========================================================
-# ✉️ CUSTOMER SUPPORT TICKETS MANAGEMENT PANEL
-# ========================================================
 @admin_bp.route('/tickets')
 @login_required
 def view_tickets():
@@ -229,14 +228,10 @@ def view_tickets():
     if not check_admin():
         return redirect(url_for('main.index'))
     
-    # Load all logged support tickets, ordered newest first
     tickets = SupportTicket.query.order_by(SupportTicket.created_at.desc()).all()
     return render_template('admin/tickets.html', tickets=tickets)
 
 
-# ========================================================
-# 🗺️ EFEOSA'S LOGISTICS ANALYSIS SYSTEM (SPATIAL HOOK)
-# ========================================================
 @admin_bp.route('/export-spatial-gaps')
 @login_required
 def export_spatial_gaps():
@@ -251,7 +246,6 @@ def export_spatial_gaps():
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # CSV Header setup with structural spatial matrices
     writer.writerow([
         'Booking_ID', 'Customer_ID', 'Vehicle_Category', 
         'Pickup_Location', 'Destination_Location', 
