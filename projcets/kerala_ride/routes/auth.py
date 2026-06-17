@@ -2,6 +2,9 @@ import os
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
+
+# Import the rate limiter from your main app initialization
+from kerala_ride import limiter 
 from kerala_ride.models import db, User, Driver, Vehicle
 
 auth_bp = Blueprint('auth', __name__)
@@ -32,6 +35,7 @@ def save_uploaded_file(file, driver_id, doc_type):
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute") # 🛡️ Blocks brute-force password guessing
 def login():
     if current_user.is_authenticated:
         if current_user.role == 'admin':
@@ -69,6 +73,7 @@ def login():
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
+@limiter.limit("3 per minute") # 🛡️ Stops bot spam account creation
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
@@ -102,6 +107,7 @@ def register():
 
 
 @auth_bp.route('/driver-register', methods=['GET', 'POST'])
+@limiter.limit("3 per minute") # 🛡️ Stops fake driver apps & malicious file uploads
 def driver_register():
     if current_user.is_authenticated and current_user.role != 'driver':
         flash('Please log out first to apply as a driver.', 'warning')
