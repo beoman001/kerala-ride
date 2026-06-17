@@ -131,8 +131,10 @@
                     <div id="map-canvas"></div>
 
                     <form method="POST" action="{{ url_for('customer.book') }}" id="bookingForm">
+                        
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        
                         <input type="hidden" name="booking_type" id="booking_type" value="passenger">
-
                         <input type="hidden" name="estimated_fare" id="estimated_fare" value="0.0">
 
                         <div class="row mb-3 gx-3">
@@ -458,7 +460,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
         fetch("/customer/estimate-fare", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                // 🛡️ Inject the CSRF Token directly into the AJAX Request Headers
+                "X-CSRFToken": "{{ csrf_token() }}"
+            },
             body: JSON.stringify({ pickup: pickup, destination: destination, category: category, promo_code: promo_code })
         })
         .then(res => res.json())
