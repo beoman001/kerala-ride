@@ -16,13 +16,13 @@
         </div>
 
         {% if driver.verification_status == 'Approved' %}
-        <div class="online-toggle-container">
+        <div class="online-toggle-container" style="display: flex; align-items: center; gap: 10px;">
             <span style="font-weight: 600; font-size: 15px; color: var(--primary-color);">Duty Status:</span>
-            <label class="switch">
-                <input type="checkbox" id="online-switch" {% if driver.is_online %}checked{% endif %}>
-                <span class="slider"></span>
+            <label class="switch" style="position: relative; display: inline-block; width: 50px; height: 24px; margin: 0;">
+                <input type="checkbox" id="online-switch" {% if driver.is_online %}checked{% endif %} style="opacity: 0; width: 0; height: 0;">
+                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px;"></span>
             </label>
-            <span id="online-label" style="font-weight: 700; font-size: 15px; color: {% if driver.is_online %}var(--accent-success){% else %}var(--text-muted){% endif %};">
+            <span id="online-label" style="font-weight: 700; font-size: 15px; width: 70px; display: inline-block; transition: color 0.3s; color: {% if driver.is_online %}#10b981{% else %}var(--text-muted){% endif %};">
                 {% if driver.is_online %}ONLINE{% else %}OFFLINE{% endif %}
             </span>
         </div>
@@ -116,13 +116,13 @@
                         <i class="fa-solid fa-map-location-dot"></i> Live Driver Navigation
                     </span>
                     {% if active_booking.status == 'Accepted' or active_booking.status == 'Arrived' %}
-                        <a href="https://www.google.com/maps/search/?api=1&query={{ active_booking.pickup_location }}"
+                        <a href="http://maps.google.com/?q={{ active_booking.pickup_location }}"
                            target="_blank"
                            class="btn btn-success py-2 font-weight-bold w-100" style="display: block; text-align: center; text-decoration: none;">
                            <i class="fa-solid fa-location-arrow me-2"></i> Launch Navigation to Pickup
                         </a>
                     {% elif active_booking.status == 'Active' %}
-                        <a href="https://www.google.com/maps/search/?api=1&query={{ active_booking.drop_location }}"
+                        <a href="http://maps.google.com/?q={{ active_booking.drop_location }}"
                            target="_blank"
                            class="btn btn-primary py-2 font-weight-bold w-100" style="display: block; text-align: center; text-decoration: none; background-color: var(--accent-blue); border: none;">
                            <i class="fa-solid fa-flag-checkered me-2"></i> Launch Navigation to Dropoff
@@ -204,7 +204,7 @@
                     </table>
                 </div>
                 {% else %}
-                <div style="text-align: center; padding: 40px 0; color: var(--text-muted);">
+                <div style="text-align: center; padding: 40px 0; color: var(--text-muted);" id="empty-queue-visual">
                     <i class="fa-solid fa-route" style="font-size: 36px; margin-bottom: 10px;"></i>
                     <p>{% if not driver.is_online %}You are currently Offline. Turn on duty to search for rides.{% else %}Waiting for live customer booking requests in your district area...{% endif %}</p>
                 </div>
@@ -217,7 +217,7 @@
                 <div class="card-title">My Vehicle Info</div>
                 {% if vehicle %}
                 <div style="font-size: 14px; display: flex; flex-direction: column; gap: 8px;">
-                    <div><strong>Brand/Model:</strong> {{ vehicle.brand }} {{ vehicle.model }}</div>
+                    <div>role<strong>Brand/Model:</strong> {{ vehicle.brand }} {{ vehicle.model }}</div>
                     <div><strong>Plate Number:</strong> <span class="badge badge-active" style="background-color: #fef08a; color: #854d0e;">{{ vehicle.plate_number }}</span></div>
                     <div><strong>Category:</strong> {{ vehicle.category }}</div>
                     <div><strong>Seating Capacity:</strong> {{ vehicle.seating_capacity }} seats</div>
@@ -279,15 +279,12 @@
             console.log("📡 Connected to real-time KeralaRide WebSocket server.");
         });
 
-        // Catches incoming ride requests targeted specifically to this driver's session
         socket.on('new_ride_request', function(data) {
             console.log("Live booking stream received:", data);
 
-            // Locate the table wrapper and table body within your queue card
             const tableBody = document.querySelector(".table-wrapper table tbody");
-            const queueCard = document.querySelector('.card:has(.table-wrapper), .card:has(i.fa-route)');
+            const queueCard = document.querySelector('.card:has(.table-wrapper), .card:has(#empty-queue-visual)');
 
-            // Construct an intuitive, clean HTML row for the booking data structure
             const newRowHTML = `
                 <tr style="animation: highlightPulse 2s ease-out; background-color: #f0fdf4;">
                     <td><span class="badge badge-active" style="background-color: #f1f5f9; color: #475569;">${data.type || 'passenger'}</span></td>
@@ -302,7 +299,7 @@
                         </span>
                     </td>
                     <td>
-                        <form action="/driver/accept_booking/${data.trip_id}" method="POST">
+                        <form action="/driver/accept/${data.trip_id}" method="POST">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <button type="submit" class="btn btn-primary btn-sm">Accept Job</button>
                         </form>
@@ -310,9 +307,8 @@
                 </tr>
             `;
 
-            // If the district queue is currently showing an empty state, wipe out the text and structure the table frame
-            const emptyState = document.querySelector(".card:has(i.fa-route) div");
-            if (emptyState && emptyState.innerHTML.includes("Waiting for live")) {
+            const emptyState = document.getElementById("empty-queue-visual");
+            if (emptyState) {
                 queueCard.innerHTML = `
                     <div class="card-title">Available Local Jobs (District Queue)</div>
                     <div class="table-wrapper">
@@ -333,75 +329,79 @@
                     </div>
                 `;
             } else if (tableBody) {
-                // Otherwise, push the newly generated ride directly onto the top row slice
                 tableBody.insertAdjacentHTML('afterbegin', newRowHTML);
             }
 
-            // Ring an alert audio track safely to capture driver user focus
             try {
                 let alertChime = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav');
                 alertChime.play();
             } catch(e) {
-                console.log("Audio autoplacing was throttled by native browser sandbox configurations.");
+                console.log("Audio layout execution was blocked by client sandbox.");
             }
         });
 
 
         // ==========================================
-        // 2. EXISTING ONLINE/OFFLINE TOGGLE HOOKS
+        // 2. STABLE ONLINE/OFFLINE TOGGLE HOOKS (FIXED)
         // ==========================================
         const onlineSwitch = document.getElementById("online-switch");
         const onlineLabel = document.getElementById("online-label");
 
         if (onlineSwitch) {
             onlineSwitch.addEventListener("change", function(e) {
-                e.preventDefault();
                 const isNowOnline = e.target.checked; 
+
+                // Prevent layout text mismatch during execution loop
+                onlineLabel.innerText = "SYNCING...";
+                onlineLabel.style.color = "#eab308";
 
                 fetch("{{ url_for('driver.toggle_online') }}", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        // 🛡️ Explicitly sending the CSRF Token!
                         "X-CSRFToken": "{{ csrf_token() }}"
                     },
-                    // We must send the actual position of the switch so the backend doesn't guess
                     body: JSON.stringify({ is_online: isNowOnline })
                 })
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
+                        // Reflect exact backend database status confirmation strings safely
                         onlineLabel.innerText = data.is_online ? "ONLINE" : "OFFLINE";
-                        onlineLabel.style.color = data.is_online ? "var(--accent-success)" : "var(--text-muted)";
+                        onlineLabel.style.color = data.is_online ? "#10b981" : "var(--text-muted)";
                         onlineSwitch.checked = data.is_online; 
-
-                        setTimeout(() => window.location.reload(), 800);
+                        
+                        // Execute soft template redirection structure to refresh rows smoothly
+                        window.location.replace("{{ url_for('driver.dashboard') }}");
                     } else {
-                        alert(data.error || "Error updating status.");
+                        alert(data.error || "Error modifying duty configuration parameters.");
                         onlineSwitch.checked = !isNowOnline;
+                        onlineLabel.innerText = !isNowOnline ? "ONLINE" : "OFFLINE";
+                        onlineLabel.style.color = !isNowOnline ? "#10b981" : "var(--text-muted)";
                     }
                 })
                 .catch(err => {
                     console.error("Online toggle error:", err);
                     onlineSwitch.checked = !isNowOnline;
+                    onlineLabel.innerText = !isNowOnline ? "ONLINE" : "OFFLINE";
+                    onlineLabel.style.color = !isNowOnline ? "#10b981" : "var(--text-muted)";
                 });
             });
         }
 
         // ==========================================
-        // 3. EXISTING ACTIVE CONSOLE EVENT ACTIONS
+        // 3. SECURE ACTIVE CONSOLE ACTIONS
         // ==========================================
         {% if active_booking %}
             const bookingId = {{ active_booking.id }};
 
-            // "I Have Arrived" Action
             const btnArrived = document.getElementById("btn-arrived");
             if (btnArrived) {
                 btnArrived.addEventListener("click", function() {
                     btnArrived.disabled = true;
                     fetch(`/driver/arrived/${bookingId}`, { 
                         method: "POST",
-                        headers: { "X-CSRFToken": "{{ csrf_token() }}" } // 🛡️ Protected Request
+                        headers: { "X-CSRFToken": "{{ csrf_token() }}" }
                     })
                     .then(res => res.json())
                     .then(data => {
@@ -415,7 +415,6 @@
                 });
             }
 
-            // "Verify OTP & Start Trip" Action
             const btnStart = document.getElementById("btn-start-trip");
             const otpInput = document.getElementById("otp-input");
             const otpError = document.getElementById("otp-error");
@@ -435,7 +434,7 @@
 
                     fetch(`/driver/start-trip/${bookingId}`, {
                         method: "POST",
-                        headers: { "X-CSRFToken": "{{ csrf_token() }}" }, // 🛡️ Protected Request
+                        headers: { "X-CSRFToken": "{{ csrf_token() }}" }, 
                         body: formData
                     })
                     .then(res => res.json())
@@ -451,14 +450,13 @@
                 });
             }
 
-            // "Complete Trip" Action
             const btnComplete = document.getElementById("btn-complete-trip");
             if (btnComplete) {
                 btnComplete.addEventListener("click", function() {
                     btnComplete.disabled = true;
                     fetch(`/driver/complete-trip/${bookingId}`, { 
                         method: "POST",
-                        headers: { "X-CSRFToken": "{{ csrf_token() }}" } // 🛡️ Protected Request
+                        headers: { "X-CSRFToken": "{{ csrf_token() }}" }
                     })
                     .then(res => res.json())
                     .then(data => {
@@ -480,6 +478,25 @@
     @keyframes highlightPulse {
         0% { background-color: #bbf7d0; }
         100% { background-color: #f0fdf4; }
+    }
+    
+    /* Elegant switch sliders styling configuration specs */
+    .switch input:checked + .slider {
+        background-color: #10b981 !important;
+    }
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+    .switch input:checked + .slider:before {
+        transform: translateX(26px);
     }
 </style>
 {% endblock %}
