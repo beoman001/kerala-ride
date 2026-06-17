@@ -5,6 +5,11 @@ from flask_login import LoginManager
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
 
+# --- NEW SECURITY IMPORTS ---
+from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
 # 1. Initialize extensions globally at the root package level
 db = SQLAlchemy()
 socketio = SocketIO(cors_allowed_origins="*", async_mode='threading')
@@ -13,6 +18,13 @@ login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Please log in to access this page.'
 login_manager.login_message_category = 'warning'
 
+# Initialize Security Engines
+csrf = CSRFProtect()
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://" # Uses server RAM to track IPs fast
+)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -20,11 +32,9 @@ def load_user(user_id):
     from kerala_ride.models import User
     return db.session.get(User, int(user_id))
 
-
 def now_utc():
     """Helper method to return timezone-naive UTC datetime safely for SQLite."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
-
 
 def create_app(test_config=None):
     """Application factory function to configure and initialize the Flask application."""
@@ -50,15 +60,15 @@ def create_app(test_config=None):
     db.init_app(app)
     login_manager.init_app(app)
     socketio.init_app(app)
+    
+    # Bind Security Engines
+    csrf.init_app(app)
+    limiter.init_app(app)
 
     # Automatically build missing database tables safely inside application context
     with app.app_context():
         from kerala_ride import models  # Forces SQLAlchemy to scan models cleanly
-        
-        # --- CRITICAL FIX: WIPE AND REBUILD DATABASE ---
-       
-        db.create_all() # Rebuilds them with the correct 255-character limits!
-        print("🚀 Database wiped and rebuilt with new character limits!")
+        db.create_all() 
 
     # --- SECURITY: Force session to use the strict 30-min timeout timer ---
     @app.before_request
@@ -86,6 +96,10 @@ def create_app(test_config=None):
     @app.errorhandler(500)
     def server_error(e):
         return render_template('errors/500.html'), 500
+        
+    @app.errorhandler(429)
+    def ratelimit_handler(e):
+        return render_template('errors/429.html', error="Too many requests. Please slow down and try again in a few minutes."), 429
 
     # Command Line Interface (CLI) seed command definition
     @app.cli.command("seed-db")
@@ -124,7 +138,6 @@ def create_app(test_config=None):
         }
 
     return app
-
 
 def seed_database(app):
     """Seeds the database with default sample records for users, drivers, and promotions."""
