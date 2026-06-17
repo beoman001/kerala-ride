@@ -125,6 +125,24 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="{{ url_for('static', filename='js/socket.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+    // Automatically injects CSRF tokens into every HTML form across the entire site
+    document.addEventListener("DOMContentLoaded", function() {
+        const csrfToken = "{{ csrf_token() }}";
+        
+        // Find every POST form on the page
+        document.querySelectorAll("form[method='POST'], form[method='post']").forEach(form => {
+            // Check if it already has a token, if not, inject it
+            if (!form.querySelector('input[name="csrf_token"]')) {
+                const hiddenInput = document.createElement("input");
+                hiddenInput.type = "hidden";
+                hiddenInput.name = "csrf_token";
+                hiddenInput.value = csrfToken;
+                form.appendChild(hiddenInput);
+            }
+        });
+    });
+</script>
 
     {% block scripts %}{% endblock %}
 </body>
