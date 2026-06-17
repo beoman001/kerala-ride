@@ -9,16 +9,23 @@
             <h1 style="font-size: 26px;"><i class="fa-solid fa-gauge-high"></i> Administrative Control Console</h1>
             <p style="color: var(--text-muted); font-size: 14px;">System metrics, driver review queue, and active emergencies</p>
         </div>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <a href="{{ url_for('admin.verification') }}" class="btn btn-outline btn-sm">
                 <i class="fa-solid fa-user-check"></i> Verification Queue ({{ pending_approvals }})
             </a>
             <a href="{{ url_for('admin.campaigns') }}" class="btn btn-primary btn-sm">
                 <i class="fa-solid fa-bullhorn"></i> Campaigns & Offers
             </a>
-            <!-- BRAND NEW MANAGE FARES BUTTON -->
             <a href="{{ url_for('admin.manage_fares') }}" class="btn btn-success btn-sm" style="background-color: #10b981; border: none; color: white;">
                 <i class="fa-solid fa-indian-rupee-sign"></i> Manage Fares
+            </a>
+            
+            <a href="{{ url_for('admin.view_tickets') }}" class="btn btn-outline btn-sm" style="border-color: var(--primary-color); color: var(--primary-color);">
+                <i class="fa-solid fa-envelope-open-text"></i> Support Tickets
+            </a>
+            
+            <a href="{{ url_for('admin.export_spatial_gaps') }}" class="btn btn-primary btn-sm" style="background-color: #6366f1; border: none; color: white;">
+                <i class="fa-solid fa-map-location-dot"></i> Export Spatial Gaps (QGIS)
             </a>
         </div>
     </div>
@@ -26,7 +33,6 @@
 
 <div class="container" style="margin-top: 30px; margin-bottom: 50px;">
 
-    <!-- Emergency SOS Alert Grid Row (Only shown if active alerts exist) -->
     {% if active_sos %}
     <div class="card" style="border: 2px solid var(--accent-danger); box-shadow: 0 0 20px rgba(220, 38, 38, 0.2); margin-bottom: 30px; background-color: rgba(220,38,38,0.01);">
         <div class="card-title" style="color: var(--accent-danger); border-bottom-color: rgba(220,38,38,0.2); display: flex; align-items: center; gap: 8px;">
@@ -85,7 +91,6 @@
     </div>
     {% endif %}
 
-    <!-- Numerical Metrics Strip -->
     <div class="stats-strip">
         <div class="stat-box">
             <div class="stat-icon blue"><i class="fa-solid fa-users"></i></div>
@@ -117,9 +122,7 @@
         </div>
     </div>
 
-    <!-- Analytics Charts & Audit Logs -->
     <div class="dashboard-grid">
-        <!-- Main: District Chart -->
         <div>
             <div class="card" style="margin-bottom: 30px;">
                 <div class="card-title">Regional Vehicle Distribution (District Level)</div>
@@ -129,7 +132,6 @@
             </div>
         </div>
 
-        <!-- Sidebar: System Audit Logs -->
         <div>
             <div class="card">
                 <div class="card-title">System Audit Logs</div>
@@ -155,7 +157,6 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Chart.js CDN for modern analytics visual display -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
