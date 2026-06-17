@@ -1,8 +1,9 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from kerala_ride.models import db, Booking, Driver, Vehicle
+# Importing your safe UTC helper to prevent timezone bugs in earnings calculations
+from kerala_ride.models import now_utc 
 from kerala_ride import socketio
-from datetime import datetime
 
 driver_bp = Blueprint('driver', __name__)
 
@@ -28,8 +29,9 @@ def dashboard():
     vehicle = Vehicle.query.filter_by(driver_id=driver.id).first()
 
     # Earnings — use final_fare for accuracy, fall back to estimated_fare
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    current_time = now_utc()
+    today_start = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
+    month_start = current_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     today_bookings = Booking.query.filter(
         Booking.driver_id == driver.id,
@@ -84,15 +86,30 @@ def dashboard():
 def toggle_online():
     if not check_role():
         return jsonify({'error': 'Unauthorized'}), 403
+    
     driver = Driver.query.filter_by(user_id=current_user.id).first()
     if not driver:
         return jsonify({'error': 'Profile not found'}), 404
+    
     if driver.verification_status != 'Approved':
-        return jsonify({'error': 'Driver is not approved yet.'}), 403
-    driver.is_online = not driver.is_online
+        return jsonify({'error': 'Driver is not approved yet. Administrator verification required.'}), 403
+    
+    # EXPLICIT STATE SYNC: Read the exact True/False value sent from the JavaScript
+    data = request.get_json()
+    if data and 'is_online' in data:
+        driver.is_online = bool(data.get('is_online'))
+    else:
+        # Fallback just in case it was triggered outside the JS logic
+        driver.is_online = not driver.is_online
+        
     db.session.commit()
+    
     status_str = "Online" if driver.is_online else "Offline"
-    return jsonify({'status': 'success', 'is_online': driver.is_online, 'message': f"You are now {status_str}."})
+    return jsonify({
+        'status': 'success', 
+        'is_online': driver.is_online, 
+        'message': f"You are now {status_str}."
+    })
 
 
 @driver_bp.route('/accept/<int:booking_id>', methods=['POST'])
@@ -100,24 +117,30 @@ def toggle_online():
 def accept_booking(booking_id):
     if not check_role():
         return redirect(url_for('main.index'))
+    
     driver = Driver.query.filter_by(user_id=current_user.id).first()
     if not driver or driver.verification_status != 'Approved':
         flash('You must be verified to accept bookings.', 'danger')
         return redirect(url_for('driver.dashboard'))
+    
     booking = db.session.get(Booking, booking_id)
     if not booking or booking.status != 'Pending':
         flash('This booking is no longer available.', 'warning')
         return redirect(url_for('driver.dashboard'))
+    
     existing_active = Booking.query.filter(
         Booking.driver_id == driver.id,
         Booking.status.in_(['Accepted', 'Arrived', 'Active'])
     ).first()
+    
     if existing_active:
         flash('You already have an active trip. Complete it first.', 'warning')
         return redirect(url_for('driver.dashboard'))
+    
     booking.driver_id = driver.id
     booking.status = 'Accepted'
     db.session.commit()
+    
     socketio.emit('booking_status', {
         'booking_id': booking.id,
         'status': 'Accepted',
@@ -126,6 +149,7 @@ def accept_booking(booking_id):
         'vehicle_plate': driver.vehicles[0].plate_number if driver.vehicles else 'KL-MOCK-1234',
         'vehicle_model': f"{driver.vehicles[0].brand} {driver.vehicles[0].model}" if driver.vehicles else 'Vehicle'
     })
+    
     flash('Booking accepted successfully!', 'success')
     return redirect(url_for('driver.dashboard'))
 
@@ -135,12 +159,16 @@ def accept_booking(booking_id):
 def arrived(booking_id):
     if not check_role():
         return jsonify({'error': 'Unauthorized'}), 403
+    
     driver = Driver.query.filter_by(user_id=current_user.id).first()
     booking = db.session.get(Booking, booking_id)
+    
     if not booking or booking.driver_id != driver.id:
         return jsonify({'error': 'Unauthorized'}), 403
+    
     booking.status = 'Arrived'
     db.session.commit()
+    
     socketio.emit('booking_status', {'booking_id': booking.id, 'status': 'Arrived'})
     return jsonify({'status': 'success', 'message': 'Notified customer of arrival.'})
 
@@ -150,15 +178,20 @@ def arrived(booking_id):
 def start_trip(booking_id):
     if not check_role():
         return jsonify({'error': 'Unauthorized'}), 403
+    
     driver = Driver.query.filter_by(user_id=current_user.id).first()
     booking = db.session.get(Booking, booking_id)
+    
     if not booking or booking.driver_id != driver.id:
         return jsonify({'error': 'Unauthorized'}), 403
+    
     input_otp = request.form.get('otp', '').strip()
     if booking.otp != input_otp:
         return jsonify({'status': 'error', 'message': 'Incorrect OTP. Please try again.'})
+    
     booking.status = 'Active'
     db.session.commit()
+    
     socketio.emit('booking_status', {'booking_id': booking.id, 'status': 'Active'})
     return jsonify({'status': 'success', 'message': 'OTP Verified! Trip started.'})
 
@@ -168,13 +201,17 @@ def start_trip(booking_id):
 def complete_trip(booking_id):
     if not check_role():
         return jsonify({'error': 'Unauthorized'}), 403
+    
     driver = Driver.query.filter_by(user_id=current_user.id).first()
     booking = db.session.get(Booking, booking_id)
+    
     if not booking or booking.driver_id != driver.id:
         return jsonify({'error': 'Unauthorized'}), 403
+    
     booking.status = 'Completed'
     booking.final_fare = booking.estimated_fare
-    booking.completed_at = datetime.utcnow()
+    booking.completed_at = now_utc()
     db.session.commit()
+    
     socketio.emit('booking_status', {'booking_id': booking.id, 'status': 'Completed', 'fare': booking.final_fare})
     return jsonify({'status': 'success', 'message': 'Trip completed successfully!'})
