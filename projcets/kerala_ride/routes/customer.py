@@ -3,7 +3,9 @@ import requests
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import login_required, current_user
-from kerala_ride import db
+
+# IMPORT SOCKETIO HERE so the customer route can broadcast to drivers
+from kerala_ride import db, socketio 
 from kerala_ride.models import Booking, SavedLocation, FareConfig, PromoOffer, EmergencyContact
 
 customer_bp = Blueprint('customer', __name__, url_prefix='/customer')
@@ -53,6 +55,19 @@ def book():
 
             db.session.add(new_booking)
             db.session.commit()
+
+            # --- ⚡ REAL-TIME WEBSOCKET PING TO DRIVERS ⚡ ---
+            # This instantly beams the ride details to the driver dashboard
+            socketio.emit('new_ride_request', {
+                'trip_id': new_booking.id,
+                'type': new_booking.type,
+                'pickup': new_booking.pickup_location,
+                'dropoff': new_booking.destination_location,
+                'fare': new_booking.estimated_fare,
+                'cargo_desc': new_booking.material_description,
+                'weight': new_booking.weight
+            })
+
             flash("Your ride request has been submitted successfully!", "success")
             return redirect(url_for('customer.dashboard'))
 
