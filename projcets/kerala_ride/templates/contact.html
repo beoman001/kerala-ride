@@ -15,6 +15,8 @@
         <div class="card glass-card">
             <h3 style="margin-bottom: 20px;">Send a Message</h3>
             <form action="{{ url_for('main.contact') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                
                 <div class="form-group">
                     <label class="form-label" for="name">Your Name</label>
                     <input type="text" id="name" name="name" class="form-control" placeholder="Full name" required>
@@ -46,22 +48,21 @@
                     <div style="font-size: 20px; color: var(--accent-amber);"><i class="fa-solid fa-location-dot"></i></div>
                     <div>
                         <strong>HQ Address:</strong>
-                        <p style="color: var(--text-muted);">Thekkedath building,Piravom,Ernakulam, KL - 686664</p>
+                        <p style="color: var(--text-muted);">Thekkedath building, Piravom, Ernakulam, KL - 686664</p>
                     </div>
-                </div
-                <div style="display: flex; gap: 12px; align-items: center;">
+                </div> <div style="display: flex; gap: 12px; align-items: center;">
                     <div style="font-size: 20px; color: var(--accent-amber);"><i class="fa-solid fa-phone"></i></div>
                     <div>
                         <strong>Support Hotlines:</strong>
-                        <p style="color: var(--text-muted);">+91 8590513605(General Support)</p>
-                        <p style="color: var(--text-muted);">+91 8590513605(Driver Approvals Portal)</p>
+                        <p style="color: var(--text-muted);">+91 8590513605 (General Support)</p>
+                        <p style="color: var(--text-muted);">+91 8590513605 (Driver Approvals Portal)</p>
                     </div>
                 </div>
                 <div style="display: flex; gap: 12px; align-items: center;">
                     <div style="font-size: 20px; color: var(--accent-amber);"><i class="fa-solid fa-envelope"></i></div>
                     <div>
                         <strong>Official Email IDs:</strong>
-                        <p style="color: var(--text-muted);">beonbinesh972@gmil.com (Customer Support)</p>
+                        <p style="color: var(--text-muted);">beonbinesh972@gmail.com (Customer Support)</p>
                         <p style="color: var(--text-muted);">josephbinesh972@gmail.com (Driver Onboarding)</p>
                     </div>
                 </div>
