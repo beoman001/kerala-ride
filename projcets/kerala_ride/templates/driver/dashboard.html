@@ -18,9 +18,9 @@
         {% if driver.verification_status == 'Approved' %}
         <div class="online-toggle-container" style="display: flex; align-items: center; gap: 10px;">
             <span style="font-weight: 600; font-size: 15px; color: var(--primary-color);">Duty Status:</span>
-            <label class="switch" style="position: relative; display: inline-block; width: 50px; height: 24px; margin: 0;">
-                <input type="checkbox" id="online-switch" {% if driver.is_online %}checked{% endif %} style="opacity: 0; width: 0; height: 0;">
-                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px;"></span>
+            <label class="switch">
+                <input type="checkbox" id="online-switch" {% if driver.is_online %}checked{% endif %}>
+                <span class="slider"></span>
             </label>
             <span id="online-label" style="font-weight: 700; font-size: 15px; width: 70px; display: inline-block; transition: color 0.3s; color: {% if driver.is_online %}#10b981{% else %}var(--text-muted){% endif %};">
                 {% if driver.is_online %}ONLINE{% else %}OFFLINE{% endif %}
@@ -191,7 +191,7 @@
                                     {% else %}
                                     <span style="font-size: 12px; color: var(--text-muted);">N/A (Passenger)</span>
                                     {% endif %}
-                                </td>
+                                end </td>
                                 <td>
                                     <form action="{{ url_for('driver.accept_booking', booking_id=booking.id) }}" method="POST">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -217,7 +217,7 @@
                 <div class="card-title">My Vehicle Info</div>
                 {% if vehicle %}
                 <div style="font-size: 14px; display: flex; flex-direction: column; gap: 8px;">
-                    <div>role<strong>Brand/Model:</strong> {{ vehicle.brand }} {{ vehicle.model }}</div>
+                    <div><strong>Brand/Model:</strong> {{ vehicle.brand }} {{ vehicle.model }}</div>
                     <div><strong>Plate Number:</strong> <span class="badge badge-active" style="background-color: #fef08a; color: #854d0e;">{{ vehicle.plate_number }}</span></div>
                     <div><strong>Category:</strong> {{ vehicle.category }}</div>
                     <div><strong>Seating Capacity:</strong> {{ vehicle.seating_capacity }} seats</div>
@@ -342,7 +342,7 @@
 
 
         // ==========================================
-        // 2. STABLE ONLINE/OFFLINE TOGGLE HOOKS (FIXED)
+        // 2. STABLE ONLINE/OFFLINE TOGGLE HOOKS (RACE CONDITION FIXED)
         // ==========================================
         const onlineSwitch = document.getElementById("online-switch");
         const onlineLabel = document.getElementById("online-label");
@@ -351,9 +351,9 @@
             onlineSwitch.addEventListener("change", function(e) {
                 const isNowOnline = e.target.checked; 
 
-                // Prevent layout text mismatch during execution loop
-                onlineLabel.innerText = "SYNCING...";
-                onlineLabel.style.color = "#eab308";
+                // Optimistic UI update: Toggle label state and colors immediately
+                onlineLabel.innerText = isNowOnline ? "ONLINE" : "OFFLINE";
+                onlineLabel.style.color = isNowOnline ? "#10b981" : "var(--text-muted)";
 
                 fetch("{{ url_for('driver.toggle_online') }}", {
                     method: "POST",
@@ -366,13 +366,15 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        // Reflect exact backend database status confirmation strings safely
+                        // Confirm explicit backend database persistence layout state
                         onlineLabel.innerText = data.is_online ? "ONLINE" : "OFFLINE";
                         onlineLabel.style.color = data.is_online ? "#10b981" : "var(--text-muted)";
                         onlineSwitch.checked = data.is_online; 
                         
-                        // Execute soft template redirection structure to refresh rows smoothly
-                        window.location.replace("{{ url_for('driver.dashboard') }}");
+                        // Introduce a slight buffer window to let DB IO complete before soft redirecting
+                        setTimeout(() => {
+                            window.location.replace("{{ url_for('driver.dashboard') }}");
+                        }, 400);
                     } else {
                         alert(data.error || "Error modifying duty configuration parameters.");
                         onlineSwitch.checked = !isNowOnline;
@@ -481,22 +483,43 @@
     }
     
     /* Elegant switch sliders styling configuration specs */
-    .switch input:checked + .slider {
-        background-color: #10b981 !important;
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 50px !important;
+        height: 26px !important;
+        margin: 0;
+    }
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .switch .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #cbd5e1 !important;
+        transition: background-color 0.3s ease;
+        border-radius: 30px !important;
     }
     .slider:before {
         position: absolute;
         content: "";
-        height: 18px;
-        width: 18px;
-        left: 3px;
-        bottom: 3px;
-        background-color: white;
-        transition: .4s;
-        border-radius: 50%;
+        height: 20px !important;
+        width: 20px !important;
+        left: 3px !important;
+        bottom: 3px !important;
+        background-color: white !important;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 50% !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
+    .switch input:checked + .slider {
+        background-color: #10b981 !important;
     }
     .switch input:checked + .slider:before {
-        transform: translateX(26px);
+        transform: translateX(24px) !important;
     }
 </style>
 {% endblock %}
