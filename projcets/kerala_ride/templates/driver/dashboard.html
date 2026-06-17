@@ -194,6 +194,7 @@
                                 </td>
                                 <td>
                                     <form action="{{ url_for('driver.accept_booking', booking_id=booking.id) }}" method="POST">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <button type="submit" class="btn btn-primary btn-sm">Accept Job</button>
                                     </form>
                                 </td>
@@ -302,6 +303,7 @@
                     </td>
                     <td>
                         <form action="/driver/accept_booking/${data.trip_id}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <button type="submit" class="btn btn-primary btn-sm">Accept Job</button>
                         </form>
                     </td>
@@ -352,25 +354,36 @@
         const onlineLabel = document.getElementById("online-label");
 
         if (onlineSwitch) {
-            onlineSwitch.addEventListener("change", function() {
+            onlineSwitch.addEventListener("change", function(e) {
+                e.preventDefault();
+                const isNowOnline = e.target.checked; 
+
                 fetch("{{ url_for('driver.toggle_online') }}", {
-                    method: "POST"
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        // 🛡️ Explicitly sending the CSRF Token!
+                        "X-CSRFToken": "{{ csrf_token() }}"
+                    },
+                    // We must send the actual position of the switch so the backend doesn't guess
+                    body: JSON.stringify({ is_online: isNowOnline })
                 })
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
                         onlineLabel.innerText = data.is_online ? "ONLINE" : "OFFLINE";
                         onlineLabel.style.color = data.is_online ? "var(--accent-success)" : "var(--text-muted)";
+                        onlineSwitch.checked = data.is_online; 
 
-                        setTimeout(() => window.location.reload(), 1000);
+                        setTimeout(() => window.location.reload(), 800);
                     } else {
                         alert(data.error || "Error updating status.");
-                        onlineSwitch.checked = !onlineSwitch.checked;
+                        onlineSwitch.checked = !isNowOnline;
                     }
                 })
                 .catch(err => {
                     console.error("Online toggle error:", err);
-                    onlineSwitch.checked = !onlineSwitch.checked;
+                    onlineSwitch.checked = !isNowOnline;
                 });
             });
         }
@@ -386,7 +399,10 @@
             if (btnArrived) {
                 btnArrived.addEventListener("click", function() {
                     btnArrived.disabled = true;
-                    fetch(`/driver/arrived/${bookingId}`, { method: "POST" })
+                    fetch(`/driver/arrived/${bookingId}`, { 
+                        method: "POST",
+                        headers: { "X-CSRFToken": "{{ csrf_token() }}" } // 🛡️ Protected Request
+                    })
                     .then(res => res.json())
                     .then(data => {
                         if (data.status === 'success') {
@@ -419,6 +435,7 @@
 
                     fetch(`/driver/start-trip/${bookingId}`, {
                         method: "POST",
+                        headers: { "X-CSRFToken": "{{ csrf_token() }}" }, // 🛡️ Protected Request
                         body: formData
                     })
                     .then(res => res.json())
@@ -439,7 +456,10 @@
             if (btnComplete) {
                 btnComplete.addEventListener("click", function() {
                     btnComplete.disabled = true;
-                    fetch(`/driver/complete-trip/${bookingId}`, { method: "POST" })
+                    fetch(`/driver/complete-trip/${bookingId}`, { 
+                        method: "POST",
+                        headers: { "X-CSRFToken": "{{ csrf_token() }}" } // 🛡️ Protected Request
+                    })
                     .then(res => res.json())
                     .then(data => {
                         if (data.status === 'success') {
