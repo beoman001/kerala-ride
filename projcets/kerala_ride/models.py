@@ -261,3 +261,24 @@ class FareConfig(db.Model):
 
     def __repr__(self):
         return f'<FareConfig {self.vehicle_category} | ₹{self.base_fare} base | ₹{self.rate_per_km}/km>'
+
+
+# ==========================================
+# 11. LIVE DISPATCH CUSTOMER SUPPORT PORTAL TICKETS
+# ==========================================
+class SupportTicket(db.Model):
+    __tablename__ = 'support_tickets'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Links directly to the User table
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), nullable=False)
+    subject = db.Column(db.String(255), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=now_utc)
+
+    # Relationship to easily fetch user data in the admin dashboard
+    user = db.relationship('User', backref=db.backref('support_tickets', lazy=True))
+
+    def __repr__(self):
+        return f'<SupportTicket {self.id} | User ID: {self.user_id} | From: {self.email}>'
