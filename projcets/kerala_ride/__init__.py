@@ -56,7 +56,7 @@ def create_app(test_config=None):
         from kerala_ride import models  # Forces SQLAlchemy to scan models cleanly
         
         # --- CRITICAL FIX: WIPE AND REBUILD DATABASE ---
-        db.drop_all()   # Deletes the old broken tables
+       
         db.create_all() # Rebuilds them with the correct 255-character limits!
         print("🚀 Database wiped and rebuilt with new character limits!")
 
