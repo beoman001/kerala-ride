@@ -85,30 +85,32 @@ def dashboard():
 @login_required
 def toggle_online():
     if not check_role():
-        return jsonify({'error': 'Unauthorized'}), 403
+        return jsonify({'status': 'error', 'error': 'Unauthorized'}), 403
     
     driver = Driver.query.filter_by(user_id=current_user.id).first()
     if not driver:
-        return jsonify({'error': 'Profile not found'}), 404
+        return jsonify({'status': 'error', 'error': 'Profile not found'}), 404
     
     if driver.verification_status != 'Approved':
-        return jsonify({'error': 'Driver is not approved yet. Administrator verification required.'}), 403
+        return jsonify({'status': 'error', 'error': 'Driver profile is not approved yet. Administrator verification required.'}), 403
     
-    # EXPLICIT STATE SYNC: Read the exact True/False value sent from the JavaScript
+    # EXPLICIT STATE SYNC: Read data parameters coming from either JSON payloads or raw form vectors safely
     data = request.get_json()
     if data and 'is_online' in data:
         driver.is_online = bool(data.get('is_online'))
+    elif request.form and 'is_online' in request.form:
+        driver.is_online = request.form.get('is_online') in ['true', 'True', '1', 'on']
     else:
-        # Fallback just in case it was triggered outside the JS logic
         driver.is_online = not driver.is_online
         
     db.session.commit()
     
-    status_str = "Online" if driver.is_online else "Offline"
+    status_str = "ONLINE" if driver.is_online else "OFFLINE"
     return jsonify({
         'status': 'success', 
         'is_online': driver.is_online, 
-        'message': f"You are now {status_str}."
+        'text': status_str,
+        'message': f"Duty status modified to {status_str}."
     })
 
 
