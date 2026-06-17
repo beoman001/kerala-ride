@@ -205,7 +205,7 @@
                 {% else %}
                 <div style="text-align: center; padding: 40px 0; color: var(--text-muted);">
                     <i class="fa-solid fa-route" style="font-size: 36px; margin-bottom: 10px;"></i>
-                    <p>{% if not driver.is_online %}You are currently Offline. Turn on duty to search for rides.{% else %}No matching bookings requested in your region yet.{% endif %}</p>
+                    <p>{% if not driver.is_online %}You are currently Offline. Turn on duty to search for rides.{% else %}Waiting for live customer booking requests in your district area...{% endif %}</p>
                 </div>
                 {% endif %}
             </div>
@@ -261,10 +261,93 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
 <script>
     document.addEventListener("DOMContentLoaded", function() {
 
-        // 1. Handle Online/Offline Status Switch
+        // ==========================================
+        // 1. REAL-TIME WEBSOCKET LISTENER LOGIC
+        // ==========================================
+        const socket = io({
+            transports: ['websocket'],
+            upgrade: false
+        });
+
+        socket.on('connect', () => {
+            console.log("📡 Connected to real-time KeralaRide WebSocket server.");
+        });
+
+        // Catches incoming ride requests targeted specifically to this driver's session
+        socket.on('new_ride_request', function(data) {
+            console.log("Live booking stream received:", data);
+
+            // Locate the table wrapper and table body within your queue card
+            const tableBody = document.querySelector(".table-wrapper table tbody");
+            const queueCard = document.querySelector('.card:has(.table-wrapper), .card:has(i.fa-route)');
+
+            // Construct an intuitive, clean HTML row for the booking data structure
+            const newRowHTML = `
+                <tr style="animation: highlightPulse 2s ease-out; background-color: #f0fdf4;">
+                    <td><span class="badge badge-active" style="background-color: #f1f5f9; color: #475569;">${data.type || 'passenger'}</span></td>
+                    <td>
+                        <div><strong>From:</strong> ${data.pickup.split(',')[0]}</div>
+                        <div><strong>To:</strong> ${data.dropoff.split(',')[0]}</div>
+                    </td>
+                    <td style="font-weight: 700; color: var(--accent-amber);">₹${data.fare}</td>
+                    <td>
+                        <span style="font-size: 12px; color: var(--text-muted);">
+                            ${data.cargo_desc ? data.cargo_desc + ' (' + data.weight + ' kg)' : 'N/A (Passenger)'}
+                        </span>
+                    </td>
+                    <td>
+                        <form action="/driver/accept_booking/${data.trip_id}" method="POST">
+                            <button type="submit" class="btn btn-primary btn-sm">Accept Job</button>
+                        </form>
+                    </td>
+                </tr>
+            `;
+
+            // If the district queue is currently showing an empty state, wipe out the text and structure the table frame
+            const emptyState = document.querySelector(".card:has(i.fa-route) div");
+            if (emptyState && emptyState.innerHTML.includes("Waiting for live")) {
+                queueCard.innerHTML = `
+                    <div class="card-title">Available Local Jobs (District Queue)</div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Route Preview</th>
+                                    <th>Fare</th>
+                                    <th>Goods Details</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${newRowHTML}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } else if (tableBody) {
+                // Otherwise, push the newly generated ride directly onto the top row slice
+                tableBody.insertAdjacentHTML('afterbegin', newRowHTML);
+            }
+
+            // Ring an alert audio track safely to capture driver user focus
+            try {
+                let alertChime = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav');
+                alertChime.play();
+            } catch(e) {
+                console.log("Audio autoplacing was throttled by native browser sandbox configurations.");
+            }
+        });
+
+
+        // ==========================================
+        // 2. EXISTING ONLINE/OFFLINE TOGGLE HOOKS
+        // ==========================================
         const onlineSwitch = document.getElementById("online-switch");
         const onlineLabel = document.getElementById("online-label");
 
@@ -279,7 +362,6 @@
                         onlineLabel.innerText = data.is_online ? "ONLINE" : "OFFLINE";
                         onlineLabel.style.color = data.is_online ? "var(--accent-success)" : "var(--text-muted)";
 
-                        // Reload dashboard shortly to refresh matching job queues
                         setTimeout(() => window.location.reload(), 1000);
                     } else {
                         alert(data.error || "Error updating status.");
@@ -293,7 +375,9 @@
             });
         }
 
-        // 2. Active Booking Console Actions
+        // ==========================================
+        // 3. EXISTING ACTIVE CONSOLE EVENT ACTIONS
+        // ==========================================
         {% if active_booking %}
             const bookingId = {{ active_booking.id }};
 
@@ -371,4 +455,11 @@
         {% endif %}
     });
 </script>
+
+<style>
+    @keyframes highlightPulse {
+        0% { background-color: #bbf7d0; }
+        100% { background-color: #f0fdf4; }
+    }
+</style>
 {% endblock %}
