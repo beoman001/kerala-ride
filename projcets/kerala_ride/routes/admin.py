@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response
 from flask_login import login_required, current_user
-from kerala_ride.models import db, User, Driver, Vehicle, Booking, PromoOffer, AuditLog, SOSAlert, FareConfig, now_utc
+from kerala_ride.models import db, User, Driver, Vehicle, Booking, PromoOffer, AuditLog, SOSAlert, FareConfig, SupportTicket, now_utc
 from datetime import timedelta
 import csv
 import io
@@ -217,3 +217,57 @@ def manage_fares():
         return redirect(url_for('admin.manage_fares'))
     configs = FareConfig.query.all()
     return render_template('admin/fares.html', configs=configs)
+
+
+# ========================================================
+# ✉️ CUSTOMER SUPPORT TICKETS MANAGEMENT PANEL
+# ========================================================
+@admin_bp.route('/tickets')
+@login_required
+def view_tickets():
+    """Secure dashboard module to read all user incoming support portal inquiries."""
+    if not check_admin():
+        return redirect(url_for('main.index'))
+    
+    # Load all logged support tickets, ordered newest first
+    tickets = SupportTicket.query.order_by(SupportTicket.created_at.desc()).all()
+    return render_template('admin/tickets.html', tickets=tickets)
+
+
+# ========================================================
+# 🗺️ EFEOSA'S LOGISTICS ANALYSIS SYSTEM (SPATIAL HOOK)
+# ========================================================
+@admin_bp.route('/export-spatial-gaps')
+@login_required
+def export_spatial_gaps():
+    """
+    Exports booking geometric coordinates to an analytics-grade CSV dataset.
+    Directly compatible with QGIS and NetworkX path tracking architectures.
+    """
+    if not check_admin():
+        return redirect(url_for('main.index'))
+        
+    bookings = Booking.query.all()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # CSV Header setup with structural spatial matrices
+    writer.writerow([
+        'Booking_ID', 'Customer_ID', 'Vehicle_Category', 
+        'Pickup_Location', 'Destination_Location', 
+        'Estimated_Fare', 'Status', 'Timestamp'
+    ])
+    
+    for b in bookings:
+        writer.writerow([
+            b.id, b.customer_id, b.vehicle_category,
+            b.pickup_location, b.destination_location,
+            b.estimated_fare, b.status, b.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        ])
+        
+    log_action("Export Spatial Gaps", "Exported spatial logistics network layout for QGIS graph mapping.")
+    db.session.commit()
+    
+    response = Response(output.getvalue(), mimetype="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename=keralaride_spatial_gaps.csv"
+    return response
