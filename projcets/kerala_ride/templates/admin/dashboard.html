@@ -3,6 +3,8 @@
 {% block title %}Admin Portal - KeralaRide Connect{% endblock %}
 
 {% block content %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+
 <section id="admin-dashboard-console" style="background-color: var(--primary-glow); padding: 30px 0;">
     <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
@@ -73,7 +75,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="https://maps.google.com/?q={{ alert.latitude }},{{ alert.longitude }}" target="_blank" style="color: var(--accent-blue); font-weight: 500;">
+                            <a href="http://maps.google.com/?q={{ alert.latitude }},{{ alert.longitude }}" target="_blank" style="color: var(--accent-blue); font-weight: 500;">
                                 <i class="fa-solid fa-map-location-dot"></i> {{ alert.latitude }}, {{ alert.longitude }}
                             </a>
                         </td>
@@ -161,16 +163,24 @@
 <script>
     document.addEventListener("DOMContentLoaded", function() {
 
-        // 1. SOS Resolution AJAX Handler
+        // 1. SOS Resolution AJAX Handler with CSRF Safety Guard Injection
         const resolveButtons = document.querySelectorAll(".btn-resolve-sos");
         resolveButtons.forEach(button => {
             button.addEventListener("click", function() {
                 const alertId = this.dataset.id;
+                
+                // 🛡️ FETCH DYNAMIC SAFETY TOKEN FROM METATAG LAYER
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
                 button.disabled = true;
                 button.innerText = "Resolving...";
 
                 fetch(`/admin/resolve-sos/${alertId}`, {
-                    method: "POST"
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrfToken // <-- Passing token to Flask security validation
+                    }
                 })
                 .then(res => res.json())
                 .then(data => {
