@@ -112,6 +112,16 @@ def create_app(test_config=None):
         from kerala_ride import models  # Forces SQLAlchemy to scan models cleanly
         db.create_all() 
 
+        # 🎯 AUTOMATIC SEEDING GATEWAY:
+        # Check if the database has users. If not, auto-seed immediately on start!
+        from kerala_ride.models import User
+        try:
+            if User.query.first() is None:
+                print("🛢️ Empty database detected on app launch! Running automated seed generation...")
+                seed_database(app)
+        except Exception as seed_err:
+            print(f"⚠️ Automated seeding bypass warning: {str(seed_err)}")
+
     # --- SECURITY: Force session to use the strict 30-min timeout timer ---
     @app.before_request
     def make_session_permanent():
@@ -198,10 +208,9 @@ def seed_database(app):
     with app.app_context():
         from kerala_ride.models import User, Driver, Vehicle, PromoOffer, SavedLocation, EmergencyContact, FareConfig
         
-        db.create_all()
-
+        # Double check inside function scope to guard against accidental duplicate seeding calls
         if User.query.first() is not None:
-            print("Database already contains data. Seeding skipped.")
+            print("Database already contains data inside seed verification check. Seeding skipped.")
             return
 
         print("Seeding database with default users and records...")
@@ -258,7 +267,7 @@ def seed_database(app):
         driver2_user = User(email="driver2@keralaride.com", name="Mohan Lal", phone="9845612345", role="driver")
         driver2_user.set_password("driver123")
         db.session.add(driver2_user)
-        driver2_user.flush()
+        db.session.flush()
 
         driver2_profile = Driver(
             user_id=driver2_user.id,
