@@ -132,14 +132,18 @@ def book():
         vehicle_category = request.form.get('vehicle_category')
         payment_method = request.form.get('payment_method', 'Cash')
         promo_code = request.form.get('promo_code', '').strip().upper()
-        estimated_fare = request.form.get('estimated_fare', 0.0)
+        estimated_fare_raw = request.form.get('estimated_fare')
+        
+        # Safe float casting
+        estimated_fare = float(estimated_fare_raw) if estimated_fare_raw else 0.0
         
         # Target specific district context sent from the front-end layout map picker
         pickup_district = request.form.get('pickup_district', '').strip()
 
         # Goods cargo details
         material_description = request.form.get('material_description', '').strip()
-        weight = request.form.get('weight')
+        weight_raw = request.form.get('weight')
+        weight = float(weight_raw) if (booking_type == 'goods' and weight_raw) else None
 
         if not pickup or not destination or not vehicle_category:
             flash("Please fill in all required fields.", "danger")
@@ -154,9 +158,9 @@ def book():
                 destination_location=destination,
                 vehicle_category=vehicle_category,
                 payment_method=payment_method,
-                estimated_fare=float(estimated_fare),
+                estimated_fare=estimated_fare,
                 material_description=material_description if booking_type == 'goods' else None,
-                weight=float(weight) if (booking_type == 'goods' and weight) else None,
+                weight=weight,
                 status="Pending"
             )
 
@@ -164,21 +168,28 @@ def book():
             db.session.commit()
 
             # --- ⚡ STEP 1: FREE INSTANT WEBSOCKET PING TO ALL ONLINE DRIVERS ⚡ ---
-            socketio.emit('new_ride_request', {
-                'trip_id': new_booking.id,
-                'type': new_booking.type,
-                'pickup': new_booking.pickup_location,
-                'dropoff': new_booking.destination_location,
-                'fare': new_booking.estimated_fare,
-                'cargo_desc': new_booking.material_description,
-                'weight': new_booking.weight
-            })
+            try:
+                socketio.emit('new_ride_request', {
+                    'trip_id': new_booking.id,
+                    'type': new_booking.type,
+                    'pickup': new_booking.pickup_location,
+                    'dropoff': new_booking.destination_location,
+                    'fare': new_booking.estimated_fare,
+                    'cargo_desc': new_booking.material_description,
+                    'weight': new_booking.weight
+                })
+            except Exception as sock_err:
+                print(f"WebSocket warning bypassed: {sock_err}")
 
             # --- 📲 STEP 2: OFF-LOAD 30-SECOND TIMER TO CELERY CLOUD TASK QUEUE 📲 ---
-            processed_delayed_sms_broadcast.apply_async(
-                args=[new_booking.id, pickup_district, new_booking.vehicle_category],
-                countdown=30  # Forces Celery to wait exactly 30 seconds before worker execution
-            )
+            # 🎯 FIX: Wrapped in try/except so missing Redis doesn't delete your booking!
+            try:
+                processed_delayed_sms_broadcast.apply_async(
+                    args=[new_booking.id, pickup_district, new_booking.vehicle_category],
+                    countdown=30
+                )
+            except Exception as celery_err:
+                print(f"Celery warning bypassed (Using in-memory testing): {celery_err}")
 
             flash("Your ride request is live! Local drivers are checking their dashboards.", "success")
             return redirect(url_for('customer.dashboard'))
@@ -220,20 +231,30 @@ def estimate_fare():
     distance_km = 0.0
 
     try:
-        # 🎯 REGEX PARSING EXTRACTION ENGINE: Solves structured numeric input failure anomalies
-        pickup_nums = re.findall(r"[-+]?\d*\.\d+|\d+", pickup)
-        dest_nums = re.findall(r"[-+]?\d*\.\d+|\d+", destination)
-        
-        if len(pickup_nums) >= 2 and len(dest_nums) >= 2:
-            p_lat, p_lng = float(pickup_nums[0]), float(pickup_nums[1])
-            d_lat, d_lng = float(dest_nums[0]), float(dest_nums[1])
+        # 🎯 FIX: Grab the hidden numeric inputs sent from the frontend first!
+        p_lat = data.get('pickup_lat')
+        p_lng = data.get('pickup_lng')
+        d_lat = data.get('dest_lat')
+        d_lng = data.get('dest_lng')
+
+        # If for some reason the hidden fields are empty, fall back to regex text extraction
+        if not p_lat or not p_lng or not d_lat or not d_lng:
+            pickup_nums = re.findall(r"[-+]?\d*\.\d+|\d+", pickup)
+            dest_nums = re.findall(r"[-+]?\d*\.\d+|\d+", destination)
+            
+            if len(pickup_nums) >= 2 and len(dest_nums) >= 2:
+                p_lat, p_lng = float(pickup_nums[0]), float(pickup_nums[1])
+                d_lat, d_lng = float(dest_nums[0]), float(dest_nums[1])
+            else:
+                p_lat, p_lng = 9.9816, 76.2999
+                d_lat, d_lng = 9.9312, 76.2673
         else:
-            # Safe runtime fallback defaults (Kochi center area metrics) if text strings completely block parameters
-            p_lat, p_lng = 9.9816, 76.2999
-            d_lat, d_lng = 9.9312, 76.2673
+            # Cast the exact hidden HTML numeric values cleanly
+            p_lat, p_lng = float(p_lat), float(p_lng)
+            d_lat, d_lng = float(d_lat), float(d_lng)
             
     except Exception as parsing_err:
-         print(f"Regex matching breakdown anomaly: {parsing_err}")
+         print(f"Extraction block anomaly: {parsing_err}")
          return jsonify({"success": False, "error": "Coordinates validation extraction module failure."}), 400
 
     try:
