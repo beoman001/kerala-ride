@@ -136,6 +136,8 @@
                         
                         <input type="hidden" name="booking_type" id="booking_type" value="passenger">
                         <input type="hidden" name="estimated_fare" id="estimated_fare" value="0.0">
+                        
+                        <input type="hidden" name="pickup_district" id="pickup_district" value="">
 
                         <div class="row mb-3 gx-3">
                             <div class="col-md-6 mb-3 mb-md-0 autocomplete-container">
@@ -196,14 +198,14 @@
 
                         <div class="row mb-4 gx-3">
                             <div class="col-md-6 mb-3">
-                                <label for="payment_method" class="form-label">Payment Option</label>
+                                <label class="form-label">Payment Option</label>
                                 <select id="payment_method" name="payment_method" class="form-select form-control">
                                     <option value="Cash">Cash to Driver</option>
                                     <option value="UPI">UPI / Google Pay</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label for="promo_code" class="form-label">Promo Code</label>
+                                <label class="form-label">Promo Code</label>
                                 <input type="text" id="promo_code" name="promo_code" class="form-control text-uppercase" placeholder="e.g. KERALA50">
                             </div>
                         </div>
@@ -295,16 +297,57 @@ function initMap() {
     setTimeout(() => { map.invalidateSize(); }, 300);
 }
 
+// 🎯 REVERSE GEOCODING EXTRACTION FOR THE WALLET-DRAINER LAYER
+function extractDistrictFromAddress(addressString) {
+    if (!addressString) return;
+    const keralaDistricts = ["Ernakulam", "Thiruvananthapuram", "Trivandrum", "Kozhikode", "Thrissur", "Kollam", "Alappuzha", "Kottayam", "Idukki", "Palakkad", "Malappuram", "Wayanad", "Kannur", "Kasaragod", "Pathanamthitta"];
+    
+    for (let district of keralaDistricts) {
+        if (addressString.toLowerCase().includes(district.toLowerCase())) {
+            // Map alternative naming variant to database format seamlessly
+            const standardizedName = (district === "Trivandrum") ? "Thiruvananthapuram" : district;
+            document.getElementById("pickup_district").value = standardizedName;
+            console.log("📡 Engine Context Locked Location District: " + standardizedName);
+            return;
+        }
+    }
+}
+
 function updateLocationFromCoords(lat, lng, targetType) {
     if (targetType === "pickup") {
         if (pickupMarker) { map.removeLayer(pickupMarker); }
         pickupMarker = L.marker([lat, lng]).addTo(map).bindPopup("🛫 Pickup Spot").openPopup();
         document.getElementById("pickup").value = `${lat.toFixed(5)},${lng.toFixed(5)}`;
         document.getElementById("target_dest").checked = true;
+
+        // Perform reverse geocode lookup directly against open-source Photon API on map pinning click inputs
+        fetch(`https://photon.komoot.io/reverse?lon=${lng}&lat=${lat}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.features && data.features.length > 0) {
+                    const props = data.features[0].properties;
+                    const name = props.name || "";
+                    const district = props.district || props.city || "";
+                    const fullAddress = district ? `${name}, ${district}` : name;
+                    
+                    document.getElementById("pickup").value = fullAddress;
+                    extractDistrictFromAddress(fullAddress);
+                }
+            }).catch(e => console.log("Reverse lookup skipped. Relying on coordinates values."));
+
     } else {
         if (destMarker) { map.removeLayer(destMarker); }
         destMarker = L.marker([lat, lng]).addTo(map).bindPopup("🛬 Destination Spot").openPopup();
         document.getElementById("destination").value = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+        
+        fetch(`https://photon.komoot.io/reverse?lon=${lng}&lat=${lat}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.features && data.features.length > 0) {
+                    const props = data.features[0].properties;
+                    document.getElementById("destination").value = props.name || `${lat.toFixed(5)},${lng.toFixed(5)}`;
+                }
+            }).catch(e => {});
     }
     resetEstimation();
 }
@@ -343,7 +386,18 @@ function setupAutocomplete(inputElement, suggestionsElement, targetType) {
                             li.addEventListener("click", function() {
                                 inputElement.value = fullLabel;
                                 suggestionsElement.classList.add("strictly-hidden");
-                                updateLocationFromCoords(lonLat[1], lonLat[0], targetType);
+                                
+                                // Direct integration layer for user selections
+                                if (targetType === "pickup") {
+                                    extractDistrictFromAddress(fullLabel);
+                                    if (pickupMarker) { map.removeLayer(pickupMarker); }
+                                    pickupMarker = L.marker([lonLat[1], lonLat[0]]).addTo(map).bindPopup("🛫 Pickup Spot").openPopup();
+                                    document.getElementById("target_dest").checked = true;
+                                } else {
+                                    if (destMarker) { map.removeLayer(destMarker); }
+                                    destMarker = L.marker([lonLat[1], lonLat[0]]).addTo(map).bindPopup("🛬 Destination Spot").openPopup();
+                                }
+                                resetEstimation();
                                 map.flyTo([lonLat[1], lonLat[0]], 14, { duration: 1 });
                             });
                             suggestionsElement.appendChild(li);
@@ -400,7 +454,6 @@ document.addEventListener("DOMContentLoaded", function() {
         bookBtn.classList.add("strictly-hidden");
         calcFareBtn.innerHTML = '<i class="fa-solid fa-calculator me-2"></i> Get Fare Estimate';
         calcFareBtn.classList.remove("strictly-hidden");
-        // Clear route polyline paths if we change pins
         if (routeLine) {
             map.removeLayer(routeLine);
             routeLine = null;
@@ -437,9 +490,6 @@ document.addEventListener("DOMContentLoaded", function() {
     tabPassenger.addEventListener("click", () => renderTab("passenger"));
     tabGoods.addEventListener("click", () => renderTab("goods"));
 
-    // ==========================================
-    // DEADLINE FIX: FORCE RECALCULATION ON INPUT
-    // ==========================================
     pickupInput.addEventListener("input", resetEstimation);
     destInput.addEventListener("input", resetEstimation);
     passengerSelect.addEventListener("change", resetEstimation);
@@ -462,7 +512,6 @@ document.addEventListener("DOMContentLoaded", function() {
             method: "POST",
             headers: { 
                 "Content-Type": "application/json",
-                // 🛡️ Inject the CSRF Token directly into the AJAX Request Headers
                 "X-CSRFToken": "{{ csrf_token() }}"
             },
             body: JSON.stringify({ pickup: pickup, destination: destination, category: category, promo_code: promo_code })
@@ -473,9 +522,6 @@ document.addEventListener("DOMContentLoaded", function() {
             if (data.success) {
                 estimateWidget.classList.remove("strictly-hidden");
 
-                // ==========================================
-                // DYNAMIC UI LOGIC (UPDATED FOR GLOBAL RETURN CHARGE)
-                // ==========================================
                 calcDistance.innerText = `${data.distance_km} km (Forward Journey)`;
 
                 if (data.is_outstation) {
@@ -495,29 +541,22 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
 
                 calcFinalTotal.innerText = `₹${data.final_fare.toFixed(2)}`;
-
-                // INJECT THE FINAL CALCULATED FARE INTO THE HIDDEN FORM INPUT
                 document.getElementById("estimated_fare").value = data.final_fare.toFixed(2);
 
                 bookBtn.classList.remove("strictly-hidden");
                 calcFareBtn.classList.add("strictly-hidden");
 
-                // ==========================================
-                // VISUAL ROUTE DRAWING LOGIC
-                // ==========================================
-                if (routeLine) { map.removeLayer(routeLine); } // Clear old lines
+                if (routeLine) { map.removeLayer(routeLine); }
 
                 if (data.route_geometry) {
-                    // Create an open-source GeoJSON vector line tracing the streets
                     routeLine = L.geoJSON(data.route_geometry, {
                         style: {
-                            color: '#064e3b', // Match your branding dark green colors
+                            color: '#064e3b',
                             weight: 5,
                             opacity: 0.85
                         }
                     }).addTo(map);
 
-                    // Automatically frame the camera bounds around the full route polyline coordinates!
                     map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
                 }
 
@@ -531,12 +570,8 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     });
 
-    // ==========================================
-    // DOUBLE-BOOKING PREVENTION
-    // ==========================================
     const bookingForm = document.getElementById("bookingForm");
     bookingForm.addEventListener("submit", function() {
-        // Lock the submit button the millisecond it's clicked
         bookBtn.disabled = true;
         bookBtn.style.opacity = "0.7";
         bookBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Securing Ride...';
