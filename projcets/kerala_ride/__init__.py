@@ -124,18 +124,27 @@ def create_app(test_config=None):
     # 🛡️ EXEMPT ADMIN BLUEPRINT ROUTING MATRIX FROM CSRF VALIDATION WALLS
     csrf.exempt(admin_bp)
 
-    # Custom HTTP error handlers
+    # Custom HTTP error handlers with dynamic string fallbacks
     @app.errorhandler(404)
     def not_found(e):
-        return render_template('errors/404.html'), 404
+        try:
+            return render_template('errors/404.html'), 404
+        except Exception:
+            return "404 Not Found: The requested URL was not found on the server.", 404
 
     @app.errorhandler(500)
     def server_error(e):
-        return render_template('errors/500.html'), 500
+        try:
+            return render_template('errors/500.html'), 500
+        except Exception:
+            return f"500 Internal Server Error Traceback Fallback: {str(e)}", 500
         
     @app.errorhandler(429)
     def ratelimit_handler(e):
-        return render_template('errors/429.html', error="Too many requests. Please slow down and try again in a few minutes."), 429
+        try:
+            return render_template('errors/429.html', error="Too many requests. Please slow down and try again in a few minutes."), 429
+        except Exception:
+            return "429 Too Many Requests: Rate limit exceeded.", 429
 
     # Command Line Interface (CLI) seed command definition
     @app.cli.command("seed-db")
@@ -241,7 +250,7 @@ def seed_database(app):
         driver2_user = User(email="driver2@keralaride.com", name="Mohan Lal", phone="9845612345", role="driver")
         driver2_user.set_password("driver123")
         db.session.add(driver2_user)
-        driver2_user.flush()
+        db.session.flush()
 
         driver2_profile = Driver(
             user_id=driver2_user.id,
