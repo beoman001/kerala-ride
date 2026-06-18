@@ -1,12 +1,13 @@
 import os
 import requests
 from datetime import datetime, timezone
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
+from twilio.rest import Client
 
 # IMPORT SOCKETIO HERE so the customer route can broadcast to drivers
 from kerala_ride import db, socketio 
-from kerala_ride.models import Booking, SavedLocation, FareConfig, PromoOffer, EmergencyContact
+from kerala_ride.models import Booking, SavedLocation, FareConfig, PromoOffer, EmergencyContact, Driver, User
 
 customer_bp = Blueprint('customer', __name__, url_prefix='/customer')
 
@@ -15,8 +16,38 @@ def now_utc():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
+def send_sms_alert(to_phone, message_body):
+    """
+    📱 Twilio SMS Gateway Dispatcher:
+    Sends an instant text notification securely utilizing system environment configuration keys.
+    """
+    account_sid = os.environ.get('TWILIO_ACCOUNT_SID')
+    auth_token = os.environ.get('TWILIO_AUTH_TOKEN')
+    twilio_number = os.environ.get('TWILIO_PHONE_NUMBER')
+    
+    if not account_sid or not auth_token or not twilio_number:
+        print("⚠️ SMS Warning: Twilio environment keys are missing. Skipping dispatch.")
+        return False
+
+    try:
+        client = Client(account_sid, auth_token)
+        # Standardize number formatting to follow E.164 requirements for India (+91)
+        formatted_phone = to_phone if to_phone.startswith('+') else f"+91{to_phone}"
+        
+        client.messages.create(
+            body=message_body,
+            from_=twilio_number,
+            to=formatted_phone
+        )
+        print(f"📡 SMS Dispatch Success: Alert shot to {formatted_phone}")
+        return True
+    except Exception as sms_err:
+        print(f"❌ Twilio API Dispatch Error: {sms_err}")
+        return False
+
+
 # ==========================================
-# 1. CUSTOMER BOOKING PAGE ROUTE
+# 1. CUSTOMER BOOKING PAGE ROUTE (SMS INTEGRATED)
 # ==========================================
 @customer_bp.route('/book', methods=['GET', 'POST'])
 @login_required
@@ -57,7 +88,6 @@ def book():
             db.session.commit()
 
             # --- ⚡ REAL-TIME WEBSOCKET PING TO DRIVERS ⚡ ---
-            # This instantly beams the ride details to the driver dashboard
             socketio.emit('new_ride_request', {
                 'trip_id': new_booking.id,
                 'type': new_booking.type,
@@ -68,7 +98,27 @@ def book():
                 'weight': new_booking.weight
             })
 
-            flash("Your ride request has been submitted successfully!", "success")
+            # --- 📲 AUTOMATED SMS FALLBACK BROADCAST ENGINE 📲 ---
+            # Fetch all matching drivers who are verified, active, online, and match the category request
+            available_drivers = Driver.query.filter(
+                Driver.verification_status == 'Approved',
+                Driver.is_online == True
+            ).all()
+
+            sms_message = (
+                f"KeralaRide Alert! New {new_booking.type.upper()} request available.\n"
+                f"Fare: ₹{new_booking.estimated_fare}\n"
+                f"Vehicle: {new_booking.vehicle_category}\n"
+                f"Open your console now to accept this job!"
+            )
+
+            for driver in available_drivers:
+                # Direct lookup filtering ensures we target matching vehicle spaces to save on credit costs
+                has_matching_vehicle = any(v.category == new_booking.vehicle_category for v in driver.vehicles)
+                if has_matching_vehicle and driver.user and driver.user.phone:
+                    send_sms_alert(driver.user.phone, sms_message)
+
+            flash("Your ride request has been submitted successfully! Local drivers have been pings via SMS.", "success")
             return redirect(url_for('customer.dashboard'))
 
         except Exception as e:
