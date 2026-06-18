@@ -1,4 +1,5 @@
 import os
+import re
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
@@ -32,6 +33,23 @@ def save_uploaded_file(file, driver_id, doc_type):
         
         return f"uploads/driver_{driver_id}/{new_filename}"
     return None
+
+
+def clean_phone_number(phone_str):
+    """
+    🧹 Phone Standardization Engine:
+    Removes non-numeric decorations and standardizes local formats for SMS Gateways.
+    """
+    if not phone_str:
+        return ""
+    # Strip spaces, brackets, dashes, and letters
+    cleaned = re.sub(r'\D', '', phone_str)
+    
+    # If it has a prefixed 91 and is 12 digits long, strip the 91 so it stores purely as a 10-digit base number
+    if len(cleaned) == 12 and cleaned.startswith('91'):
+        cleaned = cleaned[2:]
+        
+    return cleaned
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -81,10 +99,13 @@ def register():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         name = request.form.get('name', '').strip()
-        phone = request.form.get('phone', '').strip()
+        phone = clean_phone_number(request.form.get('phone', ''))
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
 
+        if len(phone) != 10:
+            flash('Please enter a valid 10-digit mobile number.', 'danger')
+            return redirect(url_for('auth.register'))
         if len(password) < 6:
             flash('Password must be at least 6 characters.', 'danger')
             return redirect(url_for('auth.register'))
@@ -116,10 +137,13 @@ def driver_register():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         name = request.form.get('name', '').strip()
-        phone = request.form.get('phone', '').strip()
+        phone = clean_phone_number(request.form.get('phone', ''))
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
 
+        if len(phone) != 10:
+            flash('Please enter a valid 10-digit mobile number for dispatch alerts.', 'danger')
+            return redirect(url_for('auth.driver_register'))
         if len(password) < 6:
             flash('Password must be at least 6 characters.', 'danger')
             return redirect(url_for('auth.driver_register'))
