@@ -1,7 +1,8 @@
 import os
+import math
 import requests
 from datetime import datetime, timezone
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import login_required, current_user
 from twilio.rest import Client
 
@@ -14,6 +15,23 @@ customer_bp = Blueprint('customer', __name__, url_prefix='/customer')
 def now_utc():
     """Helper method to return timezone-aware UTC datetime safely."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def calculate_straight_line_distance(lat1, lon1, lat2, lon2):
+    """
+    🎯 HA VERSINE MATHEMATICAL FALLBACK ENGINE:
+    Calculates geographic straight-line distance over the Earth's radius in kilometers.
+    Guarantees that route calculation can never crash your booking funnel.
+    """
+    R = 6371.0  # Earth's radius in kilometers
+    
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    
+    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    
+    return round(R * c, 1)
 
 
 def send_sms_alert(to_phone, message_body):
@@ -156,7 +174,6 @@ def book():
             })
 
             # --- 📲 STEP 2: OFF-LOAD 30-SECOND TIMER TO CELERY CLOUD TASK QUEUE 📲 ---
-            # Triggers an isolated countdown loop via Redis message brokers
             processed_delayed_sms_broadcast.apply_async(
                 args=[new_booking.id, pickup_district, new_booking.vehicle_category],
                 countdown=30  # Forces Celery to wait exactly 30 seconds before worker execution
@@ -181,7 +198,7 @@ def book():
 
 
 # ==========================================
-# 2. DYNAMIC FARE ESTIMATOR (ADMIN-CONTROLLED LOGIC)
+# 2. DYNAMIC FARE ESTIMATOR (WITH MATH FALLB ACK PROVISIONS)
 # ==========================================
 @customer_bp.route('/estimate-fare', methods=['POST'])
 @login_required
@@ -198,31 +215,47 @@ def estimate_fare():
     if not pickup or not destination or not category:
         return jsonify({"success": False, "error": "Missing pickup, dropoff, or vehicle parameters."}), 400
 
-    route_geometry = None
-    try:
-        pickup_parts = pickup.split(',')
-        dest_parts = destination.split(',')
-        
-        if len(pickup_parts) != 2 or len(dest_parts) != 2:
-            return jsonify({"success": False, "error": "Please choose precise locations from the interactive map canvas."}), 400
+    pickup_parts = pickup.split(',')
+    dest_parts = destination.split(',')
+    
+    if len(pickup_parts) != 2 or len(dest_parts) != 2:
+        return jsonify({"success": False, "error": "Please choose precise locations from the interactive map canvas."}), 400
 
-        pickup_lng_lat = f"{pickup_parts[1].strip()},{pickup_parts[0].strip()}"
-        dest_lng_lat = f"{dest_parts[1].strip()},{dest_parts[0].strip()}"
+    try:
+        # Convert map coordinates safely to structured floats for OSRM / Haversine processing
+        p_lat, p_lng = float(pickup_parts[0].strip()), float(pickup_parts[1].strip())
+        d_lat, d_lng = float(dest_parts[0].strip()), float(dest_parts[1].strip())
+    except ValueError:
+         return jsonify({"success": False, "error": "Coordinates must match structured numeric values."}), 400
+
+    route_geometry = None
+    distance_km = 0.0
+
+    try:
+        pickup_lng_lat = f"{p_lng},{p_lat}"
+        dest_lng_lat = f"{d_lng},{d_lat}"
 
         url = f"http://router.project-osrm.org/route/v1/driving/{pickup_lng_lat};{dest_lng_lat}"
-        response = requests.get(url, params={"overview": "full", "geometries": "geojson"}, timeout=5)
+        response = requests.get(url, params={"overview": "full", "geometries": "geojson"}, timeout=4)
         res_data = response.json()
 
-        if res_data.get('code') == 'Ok':
+        if response.status_code == 200 and res_data.get('code') == 'Ok':
             distance_meters = res_data['routes'][0]['distance']
             distance_km = round(distance_meters / 1000.0, 1)
             route_geometry = res_data['routes'][0]['geometry']
         else:
-            return jsonify({"success": False, "error": "Could not map a driving route layout."}), 400
+            raise Exception("OSRM API returned non-optimal track code sequence.")
 
     except Exception as e:
-        print(f"OSRM Routing Server Failure: {e}")
-        return jsonify({"success": False, "error": "Free routing engine timed out."}), 500
+        print(f"⚠️ OSRM Engine Unavailable ({str(e)}). Engaging straight-line Haversine mathematical fallback.")
+        # Calculate mathematical as-the-crow-flies distance to bypass cloud routing downtimes
+        distance_km = calculate_straight_line_distance(p_lat, p_lng, d_lat, d_lng)
+        
+        # Draw a fallback vector line directly connecting the pin inputs on Leaflet
+        route_geometry = {
+            "type": "LineString",
+            "coordinates": [[p_lng, p_lat], [d_lng, d_lat]]
+        }
 
     # Default fallback rulesets if admin hasn't set custom database entries yet
     admin_base_fare = 60.0
