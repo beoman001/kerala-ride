@@ -47,12 +47,19 @@ def create_app(test_config=None):
     """Application factory function to configure and initialize the Flask application."""
     app = Flask(__name__, instance_relative_config=True)
 
-    # 🎯 ENTERPRISE UPGRADE: Standardize database connection endpoints for Render PostgreSQL
-    raw_database_url = os.environ.get('DATABASE_URL', 'postgresql://localhost/keralaride_prod')
+    # 🎯 FIX FOR ERROR e3q8: Dynamic fallback architecture checks environments automatically
+    raw_database_url = os.environ.get('DATABASE_URL')
     
-    # Secure fix for newer SQLAlchemy dialects where 'postgres://' must be explicitly converted to 'postgresql://'
-    if raw_database_url and raw_database_url.startswith("postgres://"):
-        raw_database_url = raw_database_url.replace("postgres://", "postgresql://", 1)
+    if not raw_database_url:
+        # 💻 LOCAL DEVELOPMENT ENVIRONMENT FALLBACK
+        raw_database_url = 'sqlite:///keralaride.db'
+        print("💻 System Alert: No production engine found. Defaulting to Local SQLite instance.")
+    else:
+        # 🚀 CLOUD DEPLOYMENT CONFIGURATION (RENDER POSTGRES)
+        # Secure fix for newer SQLAlchemy dialects where 'postgres://' must be explicitly converted to 'postgresql://'
+        if raw_database_url.startswith("postgres://"):
+            raw_database_url = raw_database_url.replace("postgres://", "postgresql://", 1)
+        print("🚀 System Alert: Database path locked into Production PostgreSQL cluster engine.")
 
     # 2. Configure default application settings matching distributed backend requirements
     app.config.from_mapping(
