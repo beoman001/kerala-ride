@@ -1,5 +1,6 @@
 import os
 import requests
+import threading  # ⚡ 10/10 ARCHITECTURE Pillar: For asynchronous background countdown loops
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
@@ -46,8 +47,58 @@ def send_sms_alert(to_phone, message_body):
         return False
 
 
+def delayed_sms_broadcast(app_instance, booking_id, district, vehicle_cat):
+    """
+    ⏰ Background Thread Worker:
+    Executes after the 30-second grace window expires. Checks the database to see if
+    the booking has been accepted via free WebSockets before triggering paid Twilio SMS messages.
+    """
+    # Push the explicit application context to allow secure database querying inside a background thread
+    with app_instance.app_context():
+        try:
+            # Query the current live record status directly from the database
+            check_booking = Booking.query.get(booking_id)
+            
+            # 💰 WALLET SAVER RULE: If an active driver claimed it or it was cancelled, abort entirely!
+            if not check_booking or check_booking.status != "Pending":
+                print(f"💰 Wallet Saved! Booking ID {booking_id} was claimed via WebSockets. SMS dispatch aborted.")
+                return
+
+            print(f"📡 Grace window expired. Dispatching fallback SMS alerts for Booking ID {booking_id}...")
+            
+            # Select target drivers based on district matching bounds
+            if district:
+                available_drivers = Driver.query.filter(
+                    Driver.verification_status == 'Approved',
+                    Driver.is_online == True,
+                    Driver.district.ilike(f"%{district}%")
+                ).all()
+            else:
+                # Security limit cap fallback
+                available_drivers = Driver.query.filter(
+                    Driver.verification_status == 'Approved',
+                    Driver.is_online == True
+                ).limit(5).all()
+
+            sms_message = (
+                f"KeralaRide Alert! High Priority {check_booking.type.upper()} request available.\n"
+                f"Fare: ₹{check_booking.estimated_fare}\n"
+                f"Vehicle: {check_booking.vehicle_category}\n"
+                f"Open your dashboard now to claim this job!"
+            )
+
+            for driver in available_drivers:
+                # Filter matching vehicle allocations to save on API overhead costs
+                has_matching_vehicle = any(v.category == vehicle_cat for v in driver.vehicles)
+                if has_matching_vehicle and driver.user and driver.user.phone:
+                    send_sms_alert(driver.user.phone, sms_message)
+
+        except Exception as thread_err:
+            print(f"❌ Background Thread SMS Dispatch Error: {thread_err}")
+
+
 # ==========================================
-# 1. CUSTOMER BOOKING PAGE ROUTE (WALLET-DRAINER FIXED)
+# 1. CUSTOMER BOOKING PAGE ROUTE (10/10 OPTIMIZED)
 # ==========================================
 @customer_bp.route('/book', methods=['GET', 'POST'])
 @login_required
@@ -90,7 +141,7 @@ def book():
             db.session.add(new_booking)
             db.session.commit()
 
-            # --- ⚡ REAL-TIME WEBSOCKET PING TO DRIVERS ⚡ ---
+            # --- ⚡ STEP 1: FREE INSTANT WEBSOCKET PING TO ALL ONLINE DRIVERS ⚡ ---
             socketio.emit('new_ride_request', {
                 'trip_id': new_booking.id,
                 'type': new_booking.type,
@@ -101,35 +152,18 @@ def book():
                 'weight': new_booking.weight
             })
 
-            # --- 📲 AUTOMATED SMS FALLBACK BROADCAST ENGINE 📲 ---
-            # Wallet-Drainer Fix: Filter down scope query dynamically by geo district parameters
-            if pickup_district:
-                available_drivers = Driver.query.filter(
-                    Driver.verification_status == 'Approved',
-                    Driver.is_online == True,
-                    Driver.district.ilike(f"%{pickup_district}%")
-                ).all()
-            else:
-                # Security limit layer cap: protect API balance margins if string formatting falls through
-                available_drivers = Driver.query.filter(
-                    Driver.verification_status == 'Approved',
-                    Driver.is_online == True
-                ).limit(5).all()
-
-            sms_message = (
-                f"KeralaRide Alert! New {new_booking.type.upper()} request available.\n"
-                f"Fare: ₹{new_booking.estimated_fare}\n"
-                f"Vehicle: {new_booking.vehicle_category}\n"
-                f"Open your console now to accept this job!"
+            # --- 📲 STEP 2: SPIN UP 30-SECOND BACKGROUND SMS GRACE WINDOW TIMER 📲 ---
+            # Extract the actual native app reference structure to pass safely inside the thread boundaries
+            app_instance = current_app._get_current_object()
+            
+            sms_timer = threading.Timer(
+                30.0, # ⏳ Wait 30 seconds before spending money on cellular texts
+                delayed_sms_broadcast,
+                args=[app_instance, new_booking.id, pickup_district, new_booking.vehicle_category]
             )
+            sms_timer.start()
 
-            for driver in available_drivers:
-                # Direct lookup filtering ensures we target matching vehicle spaces to save on credit costs
-                has_matching_vehicle = any(v.category == new_booking.vehicle_category for v in driver.vehicles)
-                if has_matching_vehicle and driver.user and driver.user.phone:
-                    send_sms_alert(driver.user.phone, sms_message)
-
-            flash("Your ride request has been submitted successfully! Local drivers have been pinged via SMS.", "success")
+            flash("Your ride request is live! Local drivers are checking their dashboards.", "success")
             return redirect(url_for('customer.dashboard'))
 
         except Exception as e:
