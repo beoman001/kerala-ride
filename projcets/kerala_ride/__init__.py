@@ -4,8 +4,9 @@ from flask import Flask, render_template, session
 from flask_login import LoginManager
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
+from celery import Celery  # 🚀 ENTERPRISE UPGRADE: Asynchronous Distributed Task Queue Engine
 
-# --- NEW SECURITY IMPORTS ---
+# --- SECURITY & BACKEND STORAGE IMPORTS ---
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -18,12 +19,18 @@ login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Please log in to access this page.'
 login_manager.login_message_category = 'warning'
 
+# Initialize global Celery worker application wrapper
+celery_app = Celery(__name__)
+
 # Initialize Security Engines
 csrf = CSRFProtect()
+
+# 🎯 ENTERPRISE UPGRADE: Connect Limiter storage to Redis to prevent server memory crashes
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://" # Uses server RAM to track IPs fast
+    storage_uri=REDIS_URL  # Swapped from memory:// to scalable Redis caching layer
 )
 
 @login_manager.user_loader
@@ -33,21 +40,30 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 def now_utc():
-    """Helper method to return timezone-aware UTC datetime safely for SQLite."""
+    """Helper method to return timezone-aware UTC datetime safely."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 def create_app(test_config=None):
     """Application factory function to configure and initialize the Flask application."""
     app = Flask(__name__, instance_relative_config=True)
 
-    # 2. Configure default application settings
+    # 🎯 ENTERPRISE UPGRADE: Standardize database connection endpoints for Render PostgreSQL
+    raw_database_url = os.environ.get('DATABASE_URL', 'postgresql://localhost/keralaride_prod')
+    
+    # Secure fix for newer SQLAlchemy dialects where 'postgres://' must be explicitly converted to 'postgresql://'
+    if raw_database_url and raw_database_url.startswith("postgres://"):
+        raw_database_url = raw_database_url.replace("postgres://", "postgresql://", 1)
+
+    # 2. Configure default application settings matching distributed backend requirements
     app.config.from_mapping(
         SECRET_KEY=os.environ.get('SECRET_KEY', 'kerala_ride_connect_dev_secret_key_12345'),
-        SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URL', 'sqlite:///keralaride.db'),
+        SQLALCHEMY_DATABASE_URI=raw_database_url,
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         UPLOAD_FOLDER=os.path.join(app.root_path, 'static', 'uploads'),
         MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB max upload limit
-        PERMANENT_SESSION_LIFETIME=timedelta(minutes=30)  # Strict auto-logout timeout
+        PERMANENT_SESSION_LIFETIME=timedelta(minutes=30),  # Strict auto-logout timeout
+        CELERY_BROKER_URL=REDIS_URL,
+        CELERY_RESULT_BACKEND=REDIS_URL
     )
 
     if test_config:
@@ -64,6 +80,16 @@ def create_app(test_config=None):
     # Bind Security Engines
     csrf.init_app(app)
     limiter.init_app(app)
+
+    # 🎯 ENTERPRISE UPGRADE: Configure global Celery task instance context parameters
+    celery_app.conf.update(app.config)
+    
+    class ContextTask(celery_app.Task):
+        def __call__(self, *args, **kwargs):
+            with app.app_context():
+                return self.run(*args, **kwargs)
+                
+    celery_app.Task = ContextTask
 
     # Automatically build missing database tables safely inside application context
     with app.app_context():
@@ -208,7 +234,7 @@ def seed_database(app):
         driver2_user = User(email="driver2@keralaride.com", name="Mohan Lal", phone="9845612345", role="driver")
         driver2_user.set_password("driver123")
         db.session.add(driver2_user)
-        db.session.flush()
+        driver2_user.flush()
 
         driver2_profile = Driver(
             user_id=driver2_user.id,
