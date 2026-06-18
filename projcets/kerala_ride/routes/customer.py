@@ -376,15 +376,33 @@ def cancel_ride(booking_id):
     except Exception:
         minutes_passed = 0
 
-    if minutes_passed > 15.0:
-        penalty = round(float(booking.estimated_fare) * 0.25, 2)
+    # 🎯 NEW: Tiered Penalty Calculation Engine
+    penalty_percentage = 0.0
+    penalty_text = ""
+
+    if minutes_passed >= 60.0:
+        penalty_percentage = 0.25
+        penalty_text = "25%"
+    elif minutes_passed >= 45.0:
+        penalty_percentage = 0.15
+        penalty_text = "15%"
+    elif minutes_passed >= 30.0:
+        penalty_percentage = 0.10
+        penalty_text = "10%"
+    elif minutes_passed > 15.0:
+        penalty_percentage = 0.05
+        penalty_text = "5%"
+
+    # Apply the calculated penalty if they exceeded the 15-minute free grace period
+    if penalty_percentage > 0.0:
+        penalty = round(float(booking.estimated_fare) * penalty_percentage, 2)
         booking.status = "Cancelled"
         booking.final_fare = penalty
-        flash(f"Ride cancelled. A 1/4 grace penalty (₹{penalty}) has been applied.", "info")
+        flash(f"Ride cancelled. A {penalty_text} late cancellation penalty (₹{penalty}) has been applied.", "warning")
     else:
         booking.status = "Cancelled"
         booking.final_fare = 0.0
-        flash("Your ride has been cancelled successfully.", "success")
+        flash("Your ride has been cancelled successfully without any penalty.", "success")
 
     db.session.commit()
     return redirect(url_for('customer.dashboard'))
