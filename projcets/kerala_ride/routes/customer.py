@@ -1,19 +1,18 @@
 import os
 import requests
-import threading  # ⚡ 10/10 ARCHITECTURE Pillar: For asynchronous background countdown loops
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from twilio.rest import Client
 
-# IMPORT SOCKETIO HERE so the customer route can broadcast to drivers
-from kerala_ride import db, socketio 
+# IMPORT CORE SYSTEM CONTEXT HOOKS
+from kerala_ride import db, socketio, celery_app
 from kerala_ride.models import Booking, SavedLocation, FareConfig, PromoOffer, EmergencyContact, Driver, User
 
 customer_bp = Blueprint('customer', __name__, url_prefix='/customer')
 
 def now_utc():
-    """Helper method to return timezone-aware UTC datetime safely for SQLite."""
+    """Helper method to return timezone-aware UTC datetime safely."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
@@ -47,58 +46,62 @@ def send_sms_alert(to_phone, message_body):
         return False
 
 
-def delayed_sms_broadcast(app_instance, booking_id, district, vehicle_cat):
+# ==========================================
+# 🚀 ENTERPRISE UPGRADE: ATOMIC ROW-LOCKED BACKGROUND WORKER
+# ==========================================
+@celery_app.task
+def processed_delayed_sms_broadcast(booking_id, district, vehicle_cat):
     """
-    ⏰ Background Thread Worker:
-    Executes after the 30-second grace window expires. Checks the database to see if
-    the booking has been accepted via free WebSockets before triggering paid Twilio SMS messages.
+    🎯 Celery Task Engine:
+    Executes in isolation on your backend background worker container.
+    Utilizes database row-locking rules to check booking statuses safely.
     """
-    # Push the explicit application context to allow secure database querying inside a background thread
-    with app_instance.app_context():
-        try:
-            # Query the current live record status directly from the database
-            check_booking = Booking.query.get(booking_id)
-            
-            # 💰 WALLET SAVER RULE: If an active driver claimed it or it was cancelled, abort entirely!
-            if not check_booking or check_booking.status != "Pending":
-                print(f"💰 Wallet Saved! Booking ID {booking_id} was claimed via WebSockets. SMS dispatch aborted.")
-                return
+    try:
+        # 🛡️ PESSIMISTIC ROW LOCK: select ... for update locks this row until the transaction finishes
+        check_booking = db.session.query(Booking).filter_by(id=booking_id).with_for_update().first()
+        
+        # 💰 WALLET SAVER CHECK: If a driver claimed the job over WebSockets, drop execution instantly
+        if not check_booking or check_booking.status != "Pending":
+            print(f"💰 Celery Savings Rule: Booking ID {booking_id} has already been claimed. Aborting SMS.")
+            db.session.commit()
+            return
 
-            print(f"📡 Grace window expired. Dispatching fallback SMS alerts for Booking ID {booking_id}...")
-            
-            # Select target drivers based on district matching bounds
-            if district:
-                available_drivers = Driver.query.filter(
-                    Driver.verification_status == 'Approved',
-                    Driver.is_online == True,
-                    Driver.district.ilike(f"%{district}%")
-                ).all()
-            else:
-                # Security limit cap fallback
-                available_drivers = Driver.query.filter(
-                    Driver.verification_status == 'Approved',
-                    Driver.is_online == True
-                ).limit(5).all()
+        print(f"📡 30s Grace Timeout. Firing geo-targeted fallback SMS loop for Booking ID {booking_id}...")
 
-            sms_message = (
-                f"KeralaRide Alert! High Priority {check_booking.type.upper()} request available.\n"
-                f"Fare: ₹{check_booking.estimated_fare}\n"
-                f"Vehicle: {check_booking.vehicle_category}\n"
-                f"Open your dashboard now to claim this job!"
-            )
+        if district:
+            available_drivers = Driver.query.filter(
+                Driver.verification_status == 'Approved',
+                Driver.is_online == True,
+                Driver.district.ilike(f"%{district}%")
+            ).all()
+        else:
+            available_drivers = Driver.query.filter(
+                Driver.verification_status == 'Approved',
+                Driver.is_online == True
+            ).limit(5).all()
 
-            for driver in available_drivers:
-                # Filter matching vehicle allocations to save on API overhead costs
-                has_matching_vehicle = any(v.category == vehicle_cat for v in driver.vehicles)
-                if has_matching_vehicle and driver.user and driver.user.phone:
-                    send_sms_alert(driver.user.phone, sms_message)
+        sms_message = (
+            f"KeralaRide Alert! High Priority {check_booking.type.upper()} job available.\n"
+            f"Fare: ₹{check_booking.estimated_fare}\n"
+            f"Vehicle: {check_booking.vehicle_category}\n"
+            f"Open your dashboard now to claim this ride!"
+        )
 
-        except Exception as thread_err:
-            print(f"❌ Background Thread SMS Dispatch Error: {thread_err}")
+        for driver in available_drivers:
+            has_matching_vehicle = any(v.category == vehicle_cat for v in driver.vehicles)
+            if has_matching_vehicle and driver.user and driver.user.phone:
+                send_sms_alert(driver.user.phone, sms_message)
+                
+        # Commit row lock parameters cleanly
+        db.session.commit()
+
+    except Exception as queue_err:
+        db.session.rollback()
+        print(f"❌ Celery Background Worker Failure: {queue_err}")
 
 
 # ==========================================
-# 1. CUSTOMER BOOKING PAGE ROUTE (10/10 OPTIMIZED)
+# 1. CUSTOMER BOOKING PAGE ROUTE (CELERY ENABLED)
 # ==========================================
 @customer_bp.route('/book', methods=['GET', 'POST'])
 @login_required
@@ -152,16 +155,12 @@ def book():
                 'weight': new_booking.weight
             })
 
-            # --- 📲 STEP 2: SPIN UP 30-SECOND BACKGROUND SMS GRACE WINDOW TIMER 📲 ---
-            # Extract the actual native app reference structure to pass safely inside the thread boundaries
-            app_instance = current_app._get_current_object()
-            
-            sms_timer = threading.Timer(
-                30.0, # ⏳ Wait 30 seconds before spending money on cellular texts
-                delayed_sms_broadcast,
-                args=[app_instance, new_booking.id, pickup_district, new_booking.vehicle_category]
+            # --- 📲 STEP 2: OFF-LOAD 30-SECOND TIMER TO CELERY CLOUD TASK QUEUE 📲 ---
+            # Triggers an isolated countdown loop via Redis message brokers
+            processed_delayed_sms_broadcast.apply_async(
+                args=[new_booking.id, pickup_district, new_booking.vehicle_category],
+                countdown=30  # Forces Celery to wait exactly 30 seconds before worker execution
             )
-            sms_timer.start()
 
             flash("Your ride request is live! Local drivers are checking their dashboards.", "success")
             return redirect(url_for('customer.dashboard'))
@@ -235,7 +234,7 @@ def estimate_fare():
         fare_config = FareConfig.query.filter_by(vehicle_category=category).first()
         if fare_config:
             admin_base_fare = float(fare_config.base_fare)
-            admin_minimum_km = float(fare_config.base_distance_km)  # This acts as the admin-defined minimum limit
+            admin_minimum_km = float(fare_config.base_distance_km)
             admin_rate_per_km = float(fare_config.rate_per_km)
     except Exception as db_err:
         print(f"Database check exception, relying on presets: {db_err}")
@@ -248,29 +247,23 @@ def estimate_fare():
     return_charge = 0.0
     is_outstation = False
 
-    # 1. APPLY ADMIN MINIMUM LIMIT GAUNTLET (SAME FOR EVERY VEHICLE)
     if distance_km <= admin_minimum_km:
-        # If distance is under or equal to the admin limit, force the absolute exact base charge flat
         print(f"RESULT: Distance is below minimum limit. Locking forward fare to base: ₹{admin_base_fare}")
         forward_fare = admin_base_fare
-        return_charge = 0.0  # Absolutely zero return charges apply inside the admin boundary limit
+        return_charge = 0.0
     else:
-        # If distance breaks past the admin limit, charge the base price + extra mileage
         print(f"RESULT: Distance exceeds minimum limit. Appending extra mileage meters.")
         billable_extra_km = distance_km - admin_minimum_km
         forward_fare = admin_base_fare + (billable_extra_km * admin_rate_per_km)
         
-        # Long run triggered: Return journey compensation applies to protect driver economics
         if distance_km > 500.0:
             is_outstation = True
             return_charge = distance_km * admin_rate_per_km
         else:
             return_charge = forward_fare
 
-    # 2. COMBINE SYSTEM COMPONENT PILLARS
     final_fare = forward_fare + return_charge
 
-    # Promo Offer System Validation Layer
     discount = 0.0
     if promo_code:
         try:
