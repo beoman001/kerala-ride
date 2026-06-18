@@ -6,7 +6,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
 <style>
-    /* Sleek tabs matching your reference image */
+    /* Sleek tabs matching reference configurations */
     .nav-tabs-custom {
         display: flex;
         border-bottom: 2px solid #d1d5db;
@@ -312,10 +312,14 @@ function extractDistrictFromAddress(addressString) {
 }
 
 function updateLocationFromCoords(lat, lng, targetType) {
+    // 🎯 PRECISE FIX: Immediately bind raw coordinates to inputs as immutable fallbacks
+    const coordinateFallback = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+
     if (targetType === "pickup") {
         if (pickupMarker) { map.removeLayer(pickupMarker); }
         pickupMarker = L.marker([lat, lng]).addTo(map).bindPopup("🛫 Pickup Spot").openPopup();
-        document.getElementById("pickup").value = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+        
+        document.getElementById("pickup").value = coordinateFallback;
         document.getElementById("target_dest").checked = true;
 
         fetch(`https://photon.komoot.io/reverse?lon=${lng}&lat=${lat}`)
@@ -327,24 +331,33 @@ function updateLocationFromCoords(lat, lng, targetType) {
                     const district = props.district || props.city || "";
                     const fullAddress = district ? `${name}, ${district}` : name;
                     
-                    document.getElementById("pickup").value = fullAddress;
-                    extractDistrictFromAddress(fullAddress);
+                    if (fullAddress.trim().length > 2) {
+                        document.getElementById("pickup").value = fullAddress;
+                        extractDistrictFromAddress(fullAddress);
+                    }
                 }
-            }).catch(e => console.log("Reverse lookup skipped. Relying on coordinates values."));
+            }).catch(e => console.log("Lookup failure. Retaining raw coordinates."));
 
     } else {
         if (destMarker) { map.removeLayer(destMarker); }
         destMarker = L.marker([lat, lng]).addTo(map).bindPopup("🛬 Destination Spot").openPopup();
-        document.getElementById("destination").value = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+        
+        document.getElementById("destination").value = coordinateFallback;
         
         fetch(`https://photon.komoot.io/reverse?lon=${lng}&lat=${lat}`)
             .then(res => res.json())
             .then(data => {
                 if (data.features && data.features.length > 0) {
                     const props = data.features[0].properties;
-                    document.getElementById("destination").value = props.name || `${lat.toFixed(5)},${lng.toFixed(5)}`;
+                    const name = props.name || "";
+                    const district = props.district || props.city || "";
+                    const fullAddress = district ? `${name}, ${district}` : name;
+
+                    if (fullAddress.trim().length > 2) {
+                        document.getElementById("destination").value = fullAddress;
+                    }
                 }
-            }).catch(e => {});
+            }).catch(e => console.log("Lookup failure. Retaining raw coordinates."));
     }
     resetEstimation();
 }
