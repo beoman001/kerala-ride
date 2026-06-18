@@ -47,7 +47,7 @@ def send_sms_alert(to_phone, message_body):
 
 
 # ==========================================
-# 1. CUSTOMER BOOKING PAGE ROUTE (SMS INTEGRATED)
+# 1. CUSTOMER BOOKING PAGE ROUTE (WALLET-DRAINER FIXED)
 # ==========================================
 @customer_bp.route('/book', methods=['GET', 'POST'])
 @login_required
@@ -60,6 +60,9 @@ def book():
         payment_method = request.form.get('payment_method', 'Cash')
         promo_code = request.form.get('promo_code', '').strip().upper()
         estimated_fare = request.form.get('estimated_fare', 0.0)
+        
+        # Target specific district context sent from the front-end layout map picker
+        pickup_district = request.form.get('pickup_district', '').strip()
 
         # Goods cargo details
         material_description = request.form.get('material_description', '').strip()
@@ -99,11 +102,19 @@ def book():
             })
 
             # --- 📲 AUTOMATED SMS FALLBACK BROADCAST ENGINE 📲 ---
-            # Fetch all matching drivers who are verified, active, online, and match the category request
-            available_drivers = Driver.query.filter(
-                Driver.verification_status == 'Approved',
-                Driver.is_online == True
-            ).all()
+            # Wallet-Drainer Fix: Filter down scope query dynamically by geo district parameters
+            if pickup_district:
+                available_drivers = Driver.query.filter(
+                    Driver.verification_status == 'Approved',
+                    Driver.is_online == True,
+                    Driver.district.ilike(f"%{pickup_district}%")
+                ).all()
+            else:
+                # Security limit layer cap: protect API balance margins if string formatting falls through
+                available_drivers = Driver.query.filter(
+                    Driver.verification_status == 'Approved',
+                    Driver.is_online == True
+                ).limit(5).all()
 
             sms_message = (
                 f"KeralaRide Alert! New {new_booking.type.upper()} request available.\n"
@@ -118,7 +129,7 @@ def book():
                 if has_matching_vehicle and driver.user and driver.user.phone:
                     send_sms_alert(driver.user.phone, sms_message)
 
-            flash("Your ride request has been submitted successfully! Local drivers have been pings via SMS.", "success")
+            flash("Your ride request has been submitted successfully! Local drivers have been pinged via SMS.", "success")
             return redirect(url_for('customer.dashboard'))
 
         except Exception as e:
