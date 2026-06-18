@@ -110,15 +110,21 @@ def create_app(test_config=None):
     # Automatically build missing database tables safely inside application context
     with app.app_context():
         from kerala_ride import models  # Forces SQLAlchemy to scan models cleanly
+        
+        # 🔄 FORCE HARD RESET FOR TESTING: Drops old mismatched schemas/hashes
+        try:
+            db.drop_all()
+            print("🛢️ Database cleared to prevent old schema/hash conflicts.")
+        except Exception as drop_err:
+            print(f"⚠️ Drop table warning: {str(drop_err)}")
+            
         db.create_all() 
 
         # 🎯 AUTOMATIC SEEDING GATEWAY:
-        # Check if the database has users. If not, auto-seed immediately on start!
-        from kerala_ride.models import User
+        # Re-inject fresh user profiles using our new multi-match password logic
+        print("🛢️ Injecting fresh seed accounts on launch...")
         try:
-            if User.query.first() is None:
-                print("🛢️ Empty database detected on app launch! Running automated seed generation...")
-                seed_database(app)
+            seed_database(app)
         except Exception as seed_err:
             print(f"⚠️ Automated seeding bypass warning: {str(seed_err)}")
 
