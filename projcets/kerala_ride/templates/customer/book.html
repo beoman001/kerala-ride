@@ -264,7 +264,7 @@
 let map;
 let pickupMarker = null;
 let destMarker = null;
-let routeLine = null; // Variable to hold our road layout line polyline object
+let routeLine = null;
 
 function initMap() {
     const kochiCenter = [9.9816, 76.2999];
@@ -297,14 +297,12 @@ function initMap() {
     setTimeout(() => { map.invalidateSize(); }, 300);
 }
 
-// 🎯 REVERSE GEOCODING EXTRACTION FOR THE WALLET-DRAINER LAYER
 function extractDistrictFromAddress(addressString) {
     if (!addressString) return;
     const keralaDistricts = ["Ernakulam", "Thiruvananthapuram", "Trivandrum", "Kozhikode", "Thrissur", "Kollam", "Alappuzha", "Kottayam", "Idukki", "Palakkad", "Malappuram", "Wayanad", "Kannur", "Kasaragod", "Pathanamthitta"];
     
     for (let district of keralaDistricts) {
         if (addressString.toLowerCase().includes(district.toLowerCase())) {
-            // Map alternative naming variant to database format seamlessly
             const standardizedName = (district === "Trivandrum") ? "Thiruvananthapuram" : district;
             document.getElementById("pickup_district").value = standardizedName;
             console.log("📡 Engine Context Locked Location District: " + standardizedName);
@@ -320,7 +318,6 @@ function updateLocationFromCoords(lat, lng, targetType) {
         document.getElementById("pickup").value = `${lat.toFixed(5)},${lng.toFixed(5)}`;
         document.getElementById("target_dest").checked = true;
 
-        // Perform reverse geocode lookup directly against open-source Photon API on map pinning click inputs
         fetch(`https://photon.komoot.io/reverse?lon=${lng}&lat=${lat}`)
             .then(res => res.json())
             .then(data => {
@@ -387,7 +384,6 @@ function setupAutocomplete(inputElement, suggestionsElement, targetType) {
                                 inputElement.value = fullLabel;
                                 suggestionsElement.classList.add("strictly-hidden");
                                 
-                                // Direct integration layer for user selections
                                 if (targetType === "pickup") {
                                     extractDistrictFromAddress(fullLabel);
                                     if (pickupMarker) { map.removeLayer(pickupMarker); }
@@ -468,8 +464,10 @@ document.addEventListener("DOMContentLoaded", function() {
             tabPassenger.classList.remove("active");
             passengerSelectWrapper.classList.add("strictly-hidden");
             passengerSelect.disabled = true;
+            passengerSelect.removeAttribute('required');
             goodsSelectWrapper.classList.remove("strictly-hidden");
             goodsSelect.disabled = false;
+            goodsSelect.setAttribute('required', 'required');
             goodsBlock.classList.remove("strictly-hidden");
             materialDescription.disabled = false;
             weightInput.disabled = false;
@@ -479,8 +477,10 @@ document.addEventListener("DOMContentLoaded", function() {
             tabGoods.classList.remove("active");
             goodsSelectWrapper.classList.add("strictly-hidden");
             goodsSelect.disabled = true;
+            goodsSelect.removeAttribute('required');
             passengerSelectWrapper.classList.remove("strictly-hidden");
             passengerSelect.disabled = false;
+            passengerSelect.setAttribute('required', 'required');
             goodsBlock.classList.add("strictly-hidden");
             materialDescription.disabled = true;
             weightInput.disabled = true;
@@ -502,7 +502,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const promo_code = promoInput.value.trim();
 
         if (!pickup || !destination || !category) {
-            alert("Please select locations on the map or use search fields first.");
+            alert("Please choose precise locations from the interactive map canvas.");
             return;
         }
 
@@ -521,7 +521,6 @@ document.addEventListener("DOMContentLoaded", function() {
             calcFareBtn.innerHTML = '<i class="fa-solid fa-rotate-right me-2"></i> Recalculate Fare';
             if (data.success) {
                 estimateWidget.classList.remove("strictly-hidden");
-
                 calcDistance.innerText = `${data.distance_km} km (Forward Journey)`;
 
                 if (data.is_outstation) {
@@ -571,7 +570,17 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     const bookingForm = document.getElementById("bookingForm");
-    bookingForm.addEventListener("submit", function() {
+    bookingForm.addEventListener("submit", function(e) {
+        const pickup = pickupInput.value.trim();
+        const destination = destInput.value.trim();
+        const category = bookingTypeInput.value === "goods" ? goodsSelect.value : passengerSelect.value;
+        
+        if (!pickup || !destination || !category) {
+            e.preventDefault();
+            alert("Please choose precise locations from the interactive map canvas.");
+            return false;
+        }
+
         bookBtn.disabled = true;
         bookBtn.style.opacity = "0.7";
         bookBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Securing Ride...';
