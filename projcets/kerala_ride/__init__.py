@@ -33,7 +33,7 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 def now_utc():
-    """Helper method to return timezone-naive UTC datetime safely for SQLite."""
+    """Helper method to return timezone-aware UTC datetime safely for SQLite."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 def create_app(test_config=None):
@@ -172,10 +172,11 @@ def seed_database(app):
         contact_sos = EmergencyContact(user_id=customer.id, name="Suresh Nair (Father)", phone="9447098765")
         db.session.add_all([loc_home, loc_work, contact_sos])
 
-        # 3. Seed Verified Partner Driver 1 (Auto)
+        # 3. Seed Verified Partner Driver 1 (Auto) - Phone Standardized for Gateway
         driver1_user = User(email="driver@keralaride.com", name="Hari Kumar", phone="9847055667", role="driver")
         driver1_user.set_password("driver123")
         db.session.add(driver1_user)
+        driver1_user.permanent_session_lifetime = True
         db.session.flush()
 
         driver1_profile = Driver(
@@ -203,7 +204,7 @@ def seed_database(app):
         )
         db.session.add(vehicle1)
 
-        # 4. Seed Pending Partner Driver 2 (Taxi)
+        # 4. Seed Pending Partner Driver 2 (Taxi) - Phone Standardized for Gateway
         driver2_user = User(email="driver2@keralaride.com", name="Mohan Lal", phone="9845612345", role="driver")
         driver2_user.set_password("driver123")
         db.session.add(driver2_user)
