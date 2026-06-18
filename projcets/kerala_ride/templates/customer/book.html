@@ -136,8 +136,12 @@
                         
                         <input type="hidden" name="booking_type" id="booking_type" value="passenger">
                         <input type="hidden" name="estimated_fare" id="estimated_fare" value="0.0">
-                        
                         <input type="hidden" name="pickup_district" id="pickup_district" value="">
+                        
+                        <input type="hidden" name="pickup_lat" id="pickup_lat" value="">
+                        <input type="hidden" name="pickup_lng" id="pickup_lng" value="">
+                        <input type="hidden" name="dest_lat" id="dest_lat" value="">
+                        <input type="hidden" name="dest_lng" id="dest_lng" value="">
 
                         <div class="row mb-3 gx-3">
                             <div class="col-md-6 mb-3 mb-md-0 autocomplete-container">
@@ -312,7 +316,6 @@ function extractDistrictFromAddress(addressString) {
 }
 
 function updateLocationFromCoords(lat, lng, targetType) {
-    // 🎯 PRECISE FIX: Immediately bind raw coordinates to inputs as immutable fallbacks
     const coordinateFallback = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
     if (targetType === "pickup") {
@@ -320,6 +323,11 @@ function updateLocationFromCoords(lat, lng, targetType) {
         pickupMarker = L.marker([lat, lng]).addTo(map).bindPopup("🛫 Pickup Spot").openPopup();
         
         document.getElementById("pickup").value = coordinateFallback;
+        
+        // 🎯 FIX: Immediately bind raw values to hidden inputs
+        document.getElementById("pickup_lat").value = lat;
+        document.getElementById("pickup_lng").value = lng;
+        
         document.getElementById("target_dest").checked = true;
 
         fetch(`https://photon.komoot.io/reverse?lon=${lng}&lat=${lat}`)
@@ -343,6 +351,10 @@ function updateLocationFromCoords(lat, lng, targetType) {
         destMarker = L.marker([lat, lng]).addTo(map).bindPopup("🛬 Destination Spot").openPopup();
         
         document.getElementById("destination").value = coordinateFallback;
+
+        // 🎯 FIX: Immediately bind raw values to hidden inputs
+        document.getElementById("dest_lat").value = lat;
+        document.getElementById("dest_lng").value = lng;
         
         fetch(`https://photon.komoot.io/reverse?lon=${lng}&lat=${lat}`)
             .then(res => res.json())
@@ -401,10 +413,18 @@ function setupAutocomplete(inputElement, suggestionsElement, targetType) {
                                     extractDistrictFromAddress(fullLabel);
                                     if (pickupMarker) { map.removeLayer(pickupMarker); }
                                     pickupMarker = L.marker([lonLat[1], lonLat[0]]).addTo(map).bindPopup("🛫 Pickup Spot").openPopup();
+                                    
+                                    // Apply raw coordinates from search selection
+                                    document.getElementById("pickup_lat").value = lonLat[1];
+                                    document.getElementById("pickup_lng").value = lonLat[0];
                                     document.getElementById("target_dest").checked = true;
                                 } else {
                                     if (destMarker) { map.removeLayer(destMarker); }
                                     destMarker = L.marker([lonLat[1], lonLat[0]]).addTo(map).bindPopup("🛬 Destination Spot").openPopup();
+                                    
+                                    // Apply raw coordinates from search selection
+                                    document.getElementById("dest_lat").value = lonLat[1];
+                                    document.getElementById("dest_lng").value = lonLat[0];
                                 }
                                 resetEstimation();
                                 map.flyTo([lonLat[1], lonLat[0]], 14, { duration: 1 });
@@ -521,13 +541,23 @@ document.addEventListener("DOMContentLoaded", function() {
 
         calcFareBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Calculating Fare...';
 
+        // 🎯 FIX: Transmit the raw numbers stored in the hidden fields explicitly to the backend
         fetch("/customer/estimate-fare", {
             method: "POST",
             headers: { 
                 "Content-Type": "application/json",
                 "X-CSRFToken": "{{ csrf_token() }}"
             },
-            body: JSON.stringify({ pickup: pickup, destination: destination, category: category, promo_code: promo_code })
+            body: JSON.stringify({ 
+                pickup: pickup, 
+                destination: destination, 
+                category: category, 
+                promo_code: promo_code,
+                pickup_lat: document.getElementById("pickup_lat").value,
+                pickup_lng: document.getElementById("pickup_lng").value,
+                dest_lat: document.getElementById("dest_lat").value,
+                dest_lng: document.getElementById("dest_lng").value
+            })
         })
         .then(res => res.json())
         .then(data => {
@@ -587,10 +617,13 @@ document.addEventListener("DOMContentLoaded", function() {
         const pickup = pickupInput.value.trim();
         const destination = destInput.value.trim();
         const category = bookingTypeInput.value === "goods" ? goodsSelect.value : passengerSelect.value;
+        const p_lat = document.getElementById("pickup_lat").value;
+        const d_lat = document.getElementById("dest_lat").value;
         
-        if (!pickup || !destination || !category) {
+        // 🎯 FIX: Hard check to ensure coordinates are recorded before form dispatch
+        if (!pickup || !destination || !category || !p_lat || !d_lat) {
             e.preventDefault();
-            alert("Please choose precise locations from the interactive map canvas.");
+            alert("Please make sure you drop both pins on the map before booking!");
             return false;
         }
 
