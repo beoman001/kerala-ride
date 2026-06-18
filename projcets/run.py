@@ -1,3 +1,8 @@
+# 1. MUST BE AT THE ABSOLUTE TOP OF THE FILE BEFORE ANY OTHER IMPORTS
+from gevent import monkey
+monkey.patch_all()
+
+# 2. Now import the rest of your environment variables and components
 import os
 from kerala_ride import create_app, socketio, seed_database, celery_app
 
