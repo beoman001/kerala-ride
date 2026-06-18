@@ -57,10 +57,10 @@ def clean_phone_number(phone_str):
 def login():
     if current_user.is_authenticated:
         if current_user.role == 'admin':
-            return redirect(url_for('admin.admin_dashboard'))
+            return redirect(url_for('admin.dashboard'))
         elif current_user.role == 'driver':
-            return redirect(url_for('driver.driver_dashboard'))
-        return redirect(url_for('customer.customer_dashboard'))
+            return redirect(url_for('driver.dashboard'))
+        return redirect(url_for('customer.dashboard'))
 
     if request.method == 'POST':
         # .lower() ensures case-insensitivity so mobile users don't get locked out by Auto-Caps
@@ -76,16 +76,16 @@ def login():
 
         login_user(user, remember=remember)
 
-        # Route user to their specific dashboard based on role matrix endpoints
+        # 🎯 FIX: Route user to their exact dashboard matching admin.py endpoints
         if user.role == 'admin':
-            return redirect(url_for('admin.admin_dashboard'))
+            return redirect(url_for('admin.dashboard'))
         elif user.role == 'driver':
             driver_profile = Driver.query.filter_by(user_id=user.id).first()
             if driver_profile and driver_profile.verification_status != 'Approved':
                 flash(f"Your driver account is currently: {driver_profile.verification_status}. You'll have restricted access until approved.", "warning")
-            return redirect(url_for('driver.driver_dashboard'))
+            return redirect(url_for('driver.dashboard'))
         
-        return redirect(url_for('customer.customer_dashboard'))
+        return redirect(url_for('customer.dashboard'))
 
     return render_template('login.html')
 
