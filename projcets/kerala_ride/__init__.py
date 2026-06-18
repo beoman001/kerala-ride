@@ -25,12 +25,21 @@ celery_app = Celery(__name__)
 # Initialize Security Engines
 csrf = CSRFProtect()
 
-# 🎯 ENTERPRISE UPGRADE: Connect Limiter storage to Redis to prevent server memory crashes
-REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+# 🎯 FREE TIER FALLBACK FIX: Fallback to local memory if production Redis isn't provided
+REDIS_URL = os.environ.get('REDIS_URL')
+if not REDIS_URL or 'localhost' in REDIS_URL:
+    storage_uri = "memory://"
+    broker_url = None
+    print("💻 System Alert: Redis cloud instance not found. Falling back to safe In-Memory storage.")
+else:
+    storage_uri = REDIS_URL
+    broker_url = REDIS_URL
+    print("🚀 System Alert: Connected safely to external Redis cluster engine.")
+
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"],
-    storage_uri=REDIS_URL  # Swapped from memory:// to scalable Redis caching layer
+    storage_uri=storage_uri  # Dynamic configuration drops straight to memory if Redis is missing
 )
 
 @login_manager.user_loader
@@ -56,7 +65,6 @@ def create_app(test_config=None):
         print("💻 System Alert: No production engine found. Defaulting to Local SQLite instance.")
     else:
         # 🚀 CLOUD DEPLOYMENT CONFIGURATION (RENDER POSTGRES)
-        # Secure fix for newer SQLAlchemy dialects where 'postgres://' must be explicitly converted to 'postgresql://'
         if raw_database_url.startswith("postgres://"):
             raw_database_url = raw_database_url.replace("postgres://", "postgresql://", 1)
         print("🚀 System Alert: Database path locked into Production PostgreSQL cluster engine.")
@@ -69,8 +77,8 @@ def create_app(test_config=None):
         UPLOAD_FOLDER=os.path.join(app.root_path, 'static', 'uploads'),
         MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB max upload limit
         PERMANENT_SESSION_LIFETIME=timedelta(minutes=30),  # Strict auto-logout timeout
-        CELERY_BROKER_URL=REDIS_URL,
-        CELERY_RESULT_BACKEND=REDIS_URL
+        CELERY_BROKER_URL=broker_url,
+        CELERY_RESULT_BACKEND=broker_url
     )
 
     if test_config:
@@ -88,15 +96,16 @@ def create_app(test_config=None):
     csrf.init_app(app)
     limiter.init_app(app)
 
-    # 🎯 ENTERPRISE UPGRADE: Configure global Celery task instance context parameters
-    celery_app.conf.update(app.config)
-    
-    class ContextTask(celery_app.Task):
-        def __call__(self, *args, **kwargs):
-            with app.app_context():
-                return self.run(*args, **kwargs)
-                
-    celery_app.Task = ContextTask
+    # 🎯 ENTERPRISE UPGRADE: Configure global Celery task instance context parameters safely
+    if broker_url:
+        celery_app.conf.update(app.config)
+        
+        class ContextTask(celery_app.Task):
+            def __call__(self, *args, **kwargs):
+                with app.app_context():
+                    return self.run(*args, **kwargs)
+                    
+        celery_app.Task = ContextTask
 
     # Automatically build missing database tables safely inside application context
     with app.app_context():
@@ -187,7 +196,6 @@ def create_app(test_config=None):
 def seed_database(app):
     """Seeds the database with default sample records for users, drivers, and promotions."""
     with app.app_context():
-        # Delayed model imports inside the function completely avoid circular loading errors!
         from kerala_ride.models import User, Driver, Vehicle, PromoOffer, SavedLocation, EmergencyContact, FareConfig
         
         db.create_all()
@@ -214,7 +222,7 @@ def seed_database(app):
         contact_sos = EmergencyContact(user_id=customer.id, name="Suresh Nair (Father)", phone="9447098765")
         db.session.add_all([loc_home, loc_work, contact_sos])
 
-        # 3. Seed Verified Partner Driver 1 (Auto) - Phone Standardized for Gateway
+        # 3. Seed Verified Partner Driver 1 (Auto)
         driver1_user = User(email="driver@keralaride.com", name="Hari Kumar", phone="9847055667", role="driver")
         driver1_user.set_password("driver123")
         db.session.add(driver1_user)
@@ -246,11 +254,11 @@ def seed_database(app):
         )
         db.session.add(vehicle1)
 
-        # 4. Seed Pending Partner Driver 2 (Taxi) - Phone Standardized for Gateway
+        # 4. Seed Pending Partner Driver 2 (Taxi)
         driver2_user = User(email="driver2@keralaride.com", name="Mohan Lal", phone="9845612345", role="driver")
         driver2_user.set_password("driver123")
         db.session.add(driver2_user)
-        db.session.flush()
+        driver2_user.flush()
 
         driver2_profile = Driver(
             user_id=driver2_user.id,
@@ -277,7 +285,7 @@ def seed_database(app):
         )
         db.session.add(vehicle2)
 
-        # 5. Seed Core Base Fare Configurations matching master list types
+        # 5. Seed Core Base Fare Configurations
         config_auto = FareConfig(vehicle_category="Auto Rickshaw", base_fare=40.0, base_distance_km=1.5, rate_per_km=12.0)
         config_taxi = FareConfig(vehicle_category="Taxi", base_fare=60.0, base_distance_km=3.0, rate_per_km=15.0)
         config_suv = FareConfig(vehicle_category="8-Seater SUV", base_fare=100.0, base_distance_km=5.0, rate_per_km=22.0)
