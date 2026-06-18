@@ -1,5 +1,5 @@
 import os
-from kerala_ride import create_app, socketio, seed_database
+from kerala_ride import create_app, socketio, seed_database, celery_app
 
 app = create_app()
 
@@ -13,5 +13,5 @@ if __name__ == '__main__':
 
     print(f"KeralaRide Connect starting on public interface port {port}")
     
-    # Use socketio.run but swap out the hardcoded 5001 port for our dynamic port variable!
+    # Use socketio.run but swap out the hardcoded port for our dynamic port variable!
     socketio.run(app, host='0.0.0.0', port=port, debug=True, allow_unsafe_werkzeug=True)
