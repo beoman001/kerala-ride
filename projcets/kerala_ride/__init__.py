@@ -76,7 +76,7 @@ def create_app(test_config=None):
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         UPLOAD_FOLDER=os.path.join(app.root_path, 'static', 'uploads'),
         MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB max upload limit
-        PERMANENT_SESSION_LIFETIME=timedelta(minutes=30),  # Strict auto-logout timeout
+        PERMANENT_SESSION_LIFETIME=timedelta(days=365),  # 🎯 USER-FRIENDLY: Persistent 1-year login wrapper
         CELERY_BROKER_URL=broker_url,
         CELERY_RESULT_BACKEND=broker_url
     )
@@ -110,28 +110,17 @@ def create_app(test_config=None):
     # Automatically build missing database tables safely inside application context
     with app.app_context():
         from kerala_ride import models  # Forces SQLAlchemy to scan models cleanly
-        
-        # 🔄 FORCE HARD RESET FOR TESTING: Drops old mismatched schemas/hashes
-        try:
-            db.drop_all()
-            print("🛢️ Database cleared to prevent old schema/hash conflicts.")
-        except Exception as drop_err:
-            print(f"⚠️ Drop table warning: {str(drop_err)}")
-            
         db.create_all() 
 
         # 🎯 AUTOMATIC SEEDING GATEWAY:
-        # Re-inject fresh user profiles using our new multi-match password logic
-        print("🛢️ Injecting fresh seed accounts on launch...")
+        # Verification engine inserts structural dependencies safely only if tables are completely blank
+        from kerala_ride.models import User
         try:
-            seed_database(app)
+            if User.query.first() is None:
+                print("🛢️ Empty database detected on app launch! Running automated seed generation...")
+                seed_database(app)
         except Exception as seed_err:
             print(f"⚠️ Automated seeding bypass warning: {str(seed_err)}")
-
-    # --- SECURITY: Force session to use the strict 30-min timeout timer ---
-    @app.before_request
-    def make_session_permanent():
-        session.permanent = True
 
     # 4. Register application routing blueprints
     from kerala_ride.routes.auth import auth_bp
