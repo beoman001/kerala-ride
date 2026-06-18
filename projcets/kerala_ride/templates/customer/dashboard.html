@@ -63,6 +63,9 @@
                         {% if booking.status == 'Pending' %}
                         <form action="{{ url_for('customer.cancel_ride', booking_id=booking.id) }}" method="POST" style="flex: 1; display: flex; margin: 0;"
                               onsubmit="return confirm('Are you sure you want to cancel this booking? If it has been more than 15 minutes since booking, a 1/4 (25%) penalty charge will be billed to your account for the driver\'s time.');">
+                            
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            
                             <button type="submit" class="btn btn-outline btn-sm" style="width: 100%; border: 1px solid var(--accent-danger); color: var(--accent-danger); background: transparent; padding: 6px 12px; font-weight: 700; cursor: pointer; border-radius: 4px;">
                                 <i class="fa-solid fa-xmark"></i> Cancel Ride
                             </button>
@@ -107,7 +110,7 @@
                                     <div style="font-size: 12px; color: var(--text-muted);">To: {{ booking.destination_location.split(',')[0] }}</div>
                                 </td>
                                 <td style="padding: 12px 10px;">{{ booking.vehicle_category }}</td>
-                                <td style="padding: 12px 10px; font-weight: bold;">₹{{ booking.display_fare }}</td>
+                                <td style="padding: 12px 10px; font-weight: bold;">₹{{ booking.estimated_fare }}</td>
                                 <td style="padding: 12px 10px;">
                                     <span class="badge" style="padding: 4px 8px; border-radius: 4px; font-weight: bold;">{{ booking.status }}</span>
                                 </td>
@@ -147,11 +150,14 @@
                 </div>
 
                 <form action="{{ url_for('customer.add_location') }}" method="POST" style="border-top: 1px solid #edf2f7; padding-top: 15px;">
+                    
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
                     <div style="margin-bottom: 8px;">
-                        <input type="text" name="label" class="form-control" placeholder="Label (e.g. Home, Office)" style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #chcfd2; border-radius: 4px;" required>
+                        <input type="text" name="label" class="form-control" placeholder="Label (e.g. Home, Office)" style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #d1d5db; border-radius: 4px;" required>
                     </div>
                     <div style="margin-bottom: 8px;">
-                        <input type="text" name="address" class="form-control" placeholder="Address description" style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #chcfd2; border-radius: 4px;" required>
+                        <input type="text" name="address" class="form-control" placeholder="Address description" style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #d1d5db; border-radius: 4px;" required>
                     </div>
                     <button type="submit" class="btn btn-primary btn-sm" style="width: 100%; padding: 6px; font-size: 13px; font-weight: bold;">
                         <i class="fa-solid fa-plus"></i> Save Location
@@ -166,11 +172,14 @@
                 <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">These numbers are notified instantly if you trigger the SOS emergency alert during a trip.</p>
 
                 <form action="{{ url_for('customer.add_contact') }}" method="POST" style="padding-top: 5px;">
+                    
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
                     <div style="margin-bottom: 8px;">
-                        <input type="text" name="contact_name" class="form-control" placeholder="Contact Name (e.g. Father)" style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #chcfd2; border-radius: 4px;" required>
+                        <input type="text" name="contact_name" class="form-control" placeholder="Contact Name (e.g. Father)" style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #d1d5db; border-radius: 4px;" required>
                     </div>
                     <div style="margin-bottom: 8px;">
-                        <input type="tel" name="contact_phone" class="form-control" placeholder="10-digit mobile" style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #chcfd2; border-radius: 4px;" required>
+                        <input type="tel" name="contact_phone" class="form-control" placeholder="10-digit mobile" style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #d1d5db; border-radius: 4px;" required>
                     </div>
                     <button type="submit" class="btn btn-outline btn-sm" style="width: 100%; padding: 6px; font-size: 13px; font-weight: bold; border-color: var(--accent-danger); color: var(--accent-danger); background: transparent; cursor: pointer;">
                         <i class="fa-solid fa-plus"></i> Save Contact
