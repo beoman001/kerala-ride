@@ -429,21 +429,27 @@
         {% if active_booking %}
             const bookingId = {{ active_booking.id }};
 
-            // 🎯 NEW: Continuous Free GPS Telemetry Engine (Runs only when trip status is explicitly 'Active')
+            // 🎯 OPTIMIZED CELLULAR TELEMETRY THROTTLE: Only hits the single-threaded server once every 4 seconds max
             {% if active_booking.status == 'Active' %}
+                let lastEmittedCoordinatesTime = 0;
+
                 if (navigator.geolocation) {
                     navigator.geolocation.watchPosition(
                         function(position) {
-                            socket.emit('driver_location_update', {
-                                booking_id: bookingId,
-                                lat: position.coords.latitude,
-                                lng: position.coords.longitude
-                            });
+                            const currentExecutionTime = Date.now();
+                            if (currentExecutionTime - lastEmittedCoordinatesTime > 4000) {
+                                socket.emit('driver_location_update', {
+                                    booking_id: bookingId,
+                                    lat: position.coords.latitude,
+                                    lng: position.coords.longitude
+                                });
+                                lastEmittedCoordinatesTime = currentExecutionTime;
+                            }
                         },
                         function(error) {
                             console.log("GPS precision gathering delay background context:", error);
                         },
-                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 3000 }
                     );
                 }
             {% endif %}
