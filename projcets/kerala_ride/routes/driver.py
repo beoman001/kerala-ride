@@ -1,12 +1,14 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
-from kerala_ride.models import db, Booking, Driver, Vehicle
+
+# 🎯 FIX: Added IncidentReport to the import list
+from kerala_ride.models import db, Booking, Driver, Vehicle, IncidentReport
+
 # Importing your safe UTC helper to prevent timezone bugs in earnings calculations
 from kerala_ride.models import now_utc 
 from kerala_ride import socketio
 
 driver_bp = Blueprint('driver', __name__)
-
 
 def check_role():
     if current_user.role != 'driver':
@@ -155,6 +157,10 @@ def accept_booking(booking_id):
     
     booking.driver_id = driver.id
     booking.status = 'Accepted'
+    
+    # 🎯 NEW: Generate the 4-digit OTP instantly when the driver accepts the ride!
+    booking.generate_otp()
+    
     db.session.commit()
     
     socketio.emit('booking_status', {
@@ -201,9 +207,12 @@ def start_trip(booking_id):
     if not booking or booking.driver_id != driver.id:
         return jsonify({'error': 'Unauthorized'}), 403
     
+    # 🎯 NEW: OTP Shield. The trip cannot start unless the PIN matches what the customer sees.
     input_otp = request.form.get('otp', '').strip()
-    if booking.otp != input_otp:
-        return jsonify({'status': 'error', 'message': 'Incorrect OTP. Please try again.'})
+    
+    # Added fallback logic to prevent crash if OTP is missing from DB
+    if not booking.otp or booking.otp != input_otp:
+        return jsonify({'status': 'error', 'message': 'Incorrect OTP. Please ask the customer for their 4-digit PIN.'})
     
     booking.status = 'Active'
     db.session.commit()
@@ -231,3 +240,41 @@ def complete_trip(booking_id):
     
     socketio.emit('booking_status', {'booking_id': booking.id, 'status': 'Completed', 'fare': booking.final_fare})
     return jsonify({'status': 'success', 'message': 'Trip completed successfully!'})
+
+
+# ==========================================
+# 🎯 NEW: DRIVER-SIDE INCIDENT REPORTING
+# ==========================================
+@driver_bp.route('/report-incident/<int:booking_id>', methods=['POST'])
+@login_required
+def report_incident(booking_id):
+    if not check_role():
+        return redirect(url_for('main.index'))
+    
+    driver = Driver.query.filter_by(user_id=current_user.id).first()
+    booking = db.session.get(Booking, booking_id)
+    
+    # Security check: Make sure this driver actually owns this booking
+    if not booking or booking.driver_id != driver.id:
+        flash("Unauthorized action.", "danger")
+        return redirect(url_for('driver.dashboard'))
+
+    reason = request.form.get('reason', '').strip()
+    details = request.form.get('details', '').strip()
+
+    if reason:
+        new_report = IncidentReport(
+            booking_id=booking.id,
+            reporter_id=current_user.id,
+            reporter_role='Driver',
+            reported_user_id=booking.customer_id,
+            reason=reason,
+            details=details
+        )
+        db.session.add(new_report)
+        db.session.commit()
+        flash("Your report regarding this customer has been securely submitted to our Trust & Safety team.", "success")
+    else:
+        flash("You must provide a reason for the report.", "danger")
+
+    return redirect(url_for('driver.dashboard'))
