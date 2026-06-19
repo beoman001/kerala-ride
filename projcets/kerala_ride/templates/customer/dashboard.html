@@ -2,6 +2,11 @@
 
 {% block title %}Passenger Dashboard - KeralaRide Connect{% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <section style="background-color: var(--primary-glow); padding: 30px 0;">
     <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
@@ -51,7 +56,7 @@
                         <span style="font-size: 14px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">
                             Booking #{{ booking.id }} ({{ booking.type.title() }})
                         </span>
-                        <span class="badge" style="padding: 4px 8px; font-size: 12px; font-weight: bold; border-radius: 4px; background-color: #ffeeba; color: #856404;">{{ booking.status }}</span>
+                        <span class="badge" id="status-badge-{{ booking.id }}" style="padding: 4px 8px; font-size: 12px; font-weight: bold; border-radius: 4px; background-color: #ffeeba; color: #856404;">{{ booking.status }}</span>
                     </div>
                     
                     {% if booking.scheduled_time %}
@@ -82,6 +87,10 @@
                     </div>
                     {% endif %}
 
+                    <div id="tracking-panel-{{ booking.id }}" style="display: none; margin-bottom: 15px; animation: highlightPulse 0.5s ease-out;">
+                        <div id="live-map-{{ booking.id }}" style="height: 220px; width: 100%; border-radius: 6px; border: 1px solid #cbd5e1; z-index: 1;"></div>
+                    </div>
+
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         {% if booking.status == 'Pending' %}
                         <form action="{{ url_for('customer.cancel_ride', booking_id=booking.id) }}" method="POST" style="flex: 1; display: flex; margin: 0;"
@@ -92,9 +101,9 @@
                             </button>
                         </form>
                         {% elif booking.status in ['Accepted', 'Arrived', 'Active'] %}
-                            <a href="#" class="btn btn-sm btn-outline" style="flex: 1; border-color: var(--accent-blue); color: var(--accent-blue); text-align: center; text-decoration: none; padding: 6px 12px; font-weight: bold; border-radius: 4px;">
+                            <button type="button" onclick="startCustomerLiveTracking({{ booking.id }}, {{ booking.pickup_lat if booking.pickup_lat else 9.9816 }}, {{ booking.pickup_lng if booking.pickup_lng else 76.2999 }})" class="btn btn-sm btn-outline" style="flex: 1; border-color: var(--accent-blue); color: var(--accent-blue); padding: 6px 12px; font-weight: bold; border-radius: 4px; background: transparent; cursor: pointer;">
                                 <i class="fa-solid fa-location-crosshairs"></i> Track Driver
-                            </a>
+                            </button>
                             <button type="button" onclick="openReportModal({{ booking.id }})" class="btn btn-sm btn-outline" style="border-color: var(--accent-danger); color: var(--accent-danger); background: transparent; padding: 6px 12px; font-weight: bold; border-radius: 4px; cursor: pointer;">
                                 <i class="fa-solid fa-triangle-exclamation"></i> Report
                             </button>
@@ -236,7 +245,7 @@
             </div>
             <div style="margin-bottom: 15px;">
                 <label style="font-size: 14px; font-weight: bold;">Additional Details</label>
-                <textarea name="details" rows="3" class="form-control" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;"></textarea>
+                <textarea name="details" rows="3" class="form-control" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px Pap;"></textarea>
             </div>
             <div style="display:flex; gap:10px;">
                 <button type="button" onclick="closeModals()" class="btn btn-outline" style="flex:1; border:1px solid #ccc; background:transparent;">Cancel</button>
@@ -272,9 +281,66 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
 <script>
-    // Star Rating Logic
+    // Global tracking storage matrices inside window lifecycle scope
+    let customerTrackingMaps = {};
+    let activeDriverMarkers = {};
+
+    // 🎯 NEW: Completely free Leaflet + Socket.io dynamic rendering framework
+    function startCustomerLiveTracking(bookingId, pickupLat, pickupLng) {
+        const panelElement = document.getElementById(`tracking-panel-${bookingId}`);
+        if (!panelElement) return;
+
+        panelElement.style.display = 'block';
+
+        // Instantiate Leaflet engine map canvas context frame if not built yet
+        if (!customerTrackingMaps[bookingId]) {
+            customerTrackingMaps[bookingId] = L.map(`live-map-${bookingId}`).setView([pickupLat, pickupLng], 15);
+
+            // Using premium, zero cost CartoDB Voyager tiles over standard OpenStreetMap styles
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(customerTrackingMaps[bookingId]);
+
+            // Pin user's starting point coordinate location
+            L.marker([pickupLat, pickupLng]).addTo(customerTrackingMaps[bookingId])
+                .bindPopup("<b>Your Pickup Spot</b>")
+                .openPopup();
+        }
+
+        // Initialize global socket instance
+        const socket = io({
+            transports: ['websocket'],
+            upgrade: false
+        });
+
+        // Pull driver coordinates over incoming dedicated socket streams 
+        socket.on(`customer_track_${bookingId}`, function(coords) {
+            console.log("Live coordinate point read:", coords);
+            const positionArray = [coords.lat, coords.lng];
+
+            if (activeDriverMarkers[bookingId]) {
+                // Instantly update the marker position on map view frames
+                activeDriverMarkers[bookingId].setLatLng(positionArray);
+            } else {
+                // Initialize clean custom markers for vehicles
+                activeDriverMarkers[bookingId] = L.marker(positionArray).addTo(customerTrackingMaps[bookingId])
+                    .bindPopup("<b>Your Driver is Here</b>")
+                    .openPopup();
+            }
+
+            // Reposition viewport coordinates camera layout bounds smoothly
+            customerTrackingMaps[bookingId].panTo(positionArray);
+        });
+    }
+
+    // Star Rating UI Logic
     document.querySelectorAll('.star').forEach(star => {
         star.addEventListener('click', function() {
             let rating = this.getAttribute('data-value');
@@ -282,9 +348,9 @@
             
             document.querySelectorAll('.star').forEach(s => {
                 if (s.getAttribute('data-value') <= rating) {
-                    s.style.color = '#f59e0b'; // Gold
+                    s.style.color = '#f59e0b'; 
                 } else {
-                    s.style.color = '#d1d5db'; // Gray
+                    s.style.color = '#d1d5db'; 
                 }
             });
         });
@@ -298,7 +364,6 @@
     
     function openRatingModal(bookingId) {
         document.getElementById('ratingForm').action = '/customer/rate-ride/' + bookingId;
-        // Default to 5 stars visually
         document.querySelectorAll('.star').forEach(s => s.style.color = '#f59e0b');
         document.getElementById('ratingModal').style.display = 'flex';
     }
