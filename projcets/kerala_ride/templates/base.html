@@ -94,8 +94,8 @@
 
     <header>
         <nav class="navbar container">
-            <a class="brand" href="{{ url_for('main.index') }}">
-                <i class="fa-solid fa-bus-simple"></i>
+            <a class="brand" href="{{ url_for('main.index') }}" style="display: flex; align-items: center; gap: 10px; text-decoration: none;">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="KeralaRide Logo" style="height: 36px; width: auto; object-fit: contain;" onerror="this.style.display='none'">
                 <span>Kerala<span class="brand-accent">Ride</span></span>
             </a>
 
@@ -157,8 +157,8 @@
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-col">
-                    <div class="brand" style="margin-bottom: 12px;">
-                        <i class="fa-solid fa-bus-simple"></i>
+                    <div class="brand" style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="KeralaRide Logo" style="height: 30px; width: auto; object-fit: contain;" onerror="this.style.display='none'">
                         <span>Kerala<span class="brand-accent">Ride</span></span>
                     </div>
                     <p>Providing premium vehicle logistics and verified partner registries to secure and optimize transit across all 14 districts of Kerala.</p>
