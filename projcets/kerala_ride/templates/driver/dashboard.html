@@ -331,7 +331,6 @@
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
 <script>
-    // 🎯 NEW: Modal triggers for the driver reporting system
     function openDriverReportModal(bookingId) {
         document.getElementById('driverReportForm').action = '/driver/report-incident/' + bookingId;
         document.getElementById('driverReportModal').style.display = 'flex';
@@ -361,7 +360,6 @@
             const tableBody = document.querySelector(".table-wrapper table tbody");
             const queueCard = document.querySelector('.card:has(.table-wrapper), .card:has(#empty-queue-visual)');
             
-            // 🎯 NEW: Add "SCHEDULED" tag to live incoming web socket requests if it's a scheduled ride
             let scheduleTag = "";
             if (data.is_scheduled) {
                 scheduleTag = `<div style="font-size: 11px; color: #b45309; font-weight: bold; margin-bottom: 4px;"><i class="fa-regular fa-clock"></i> LATER: Check Details</div>`;
@@ -430,6 +428,25 @@
         // ==========================================
         {% if active_booking %}
             const bookingId = {{ active_booking.id }};
+
+            // 🎯 NEW: Continuous Free GPS Telemetry Engine (Runs only when trip status is explicitly 'Active')
+            {% if active_booking.status == 'Active' %}
+                if (navigator.geolocation) {
+                    navigator.geolocation.watchPosition(
+                        function(position) {
+                            socket.emit('driver_location_update', {
+                                booking_id: bookingId,
+                                lat: position.coords.latitude,
+                                lng: position.coords.longitude
+                            });
+                        },
+                        function(error) {
+                            console.log("GPS precision gathering delay background context:", error);
+                        },
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                    );
+                }
+            {% endif %}
 
             const btnArrived = document.getElementById("btn-arrived");
             if (btnArrived) {
@@ -516,7 +533,6 @@
         100% { background-color: #f0fdf4; }
     }
     
-    /* Elegant switch sliders styling configuration specs */
     .switch {
         position: relative;
         display: inline-block;
