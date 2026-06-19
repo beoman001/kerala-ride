@@ -8,8 +8,9 @@ from flask_login import login_required, current_user
 from twilio.rest import Client
 
 # IMPORT CORE SYSTEM CONTEXT HOOKS
+# 🎯 FIX: Added IncidentReport to the import list!
 from kerala_ride import db, socketio, celery_app
-from kerala_ride.models import Booking, SavedLocation, FareConfig, PromoOffer, EmergencyContact, Driver, User
+from kerala_ride.models import Booking, SavedLocation, FareConfig, PromoOffer, EmergencyContact, Driver, User, IncidentReport
 
 customer_bp = Blueprint('customer', __name__, url_prefix='/customer')
 
@@ -145,6 +146,16 @@ def book():
         weight_raw = request.form.get('weight')
         weight = float(weight_raw) if (booking_type == 'goods' and weight_raw) else None
 
+        # 🎯 NEW: Parse Scheduled Time
+        scheduled_time_raw = request.form.get('scheduled_time')
+        parsed_scheduled_time = None
+        if scheduled_time_raw:
+            try:
+                # HTML5 datetime-local inputs come in 'YYYY-MM-DDTHH:MM' format
+                parsed_scheduled_time = datetime.strptime(scheduled_time_raw, '%Y-%m-%dT%H:%M')
+            except ValueError:
+                print(f"Warning: Failed to parse scheduled time: {scheduled_time_raw}")
+
         if not pickup or not destination or not vehicle_category:
             flash("Please fill in all required fields.", "danger")
             return redirect(url_for('customer.book'))
@@ -161,6 +172,7 @@ def book():
                 estimated_fare=estimated_fare,
                 material_description=material_description if booking_type == 'goods' else None,
                 weight=weight,
+                scheduled_time=parsed_scheduled_time, # 🎯 NEW
                 status="Pending"
             )
 
@@ -176,13 +188,13 @@ def book():
                     'dropoff': new_booking.destination_location,
                     'fare': new_booking.estimated_fare,
                     'cargo_desc': new_booking.material_description,
-                    'weight': new_booking.weight
+                    'weight': new_booking.weight,
+                    'is_scheduled': True if parsed_scheduled_time else False # Tell the driver if it's for later!
                 })
             except Exception as sock_err:
                 print(f"WebSocket warning bypassed: {sock_err}")
 
             # --- 📲 STEP 2: OFF-LOAD 30-SECOND TIMER TO CELERY CLOUD TASK QUEUE 📲 ---
-            # 🎯 FIX: Wrapped in try/except so missing Redis doesn't delete your booking!
             try:
                 processed_delayed_sms_broadcast.apply_async(
                     args=[new_booking.id, pickup_district, new_booking.vehicle_category],
@@ -191,7 +203,11 @@ def book():
             except Exception as celery_err:
                 print(f"Celery warning bypassed (Using in-memory testing): {celery_err}")
 
-            flash("Your ride request is live! Local drivers are checking their dashboards.", "success")
+            if parsed_scheduled_time:
+                flash(f"Your ride has been scheduled for {parsed_scheduled_time.strftime('%I:%M %p on %b %d')}!", "success")
+            else:
+                flash("Your ride request is live! Local drivers are checking their dashboards.", "success")
+                
             return redirect(url_for('customer.dashboard'))
 
         except Exception as e:
@@ -231,7 +247,6 @@ def estimate_fare():
     distance_km = 0.0
 
     try:
-        # 🎯 FIX: Grab the hidden numeric inputs sent from the frontend first!
         p_lat = data.get('pickup_lat')
         p_lng = data.get('pickup_lng')
         d_lat = data.get('dest_lat')
@@ -281,7 +296,6 @@ def estimate_fare():
             "coordinates": [[p_lng, p_lat], [d_lng, d_lat]]
         }
 
-    # Default fallback rulesets if admin hasn't set custom database entries yet
     admin_base_fare = 60.0
     admin_minimum_km = 3.0
     admin_rate_per_km = 15.0
@@ -294,9 +308,6 @@ def estimate_fare():
             admin_rate_per_km = float(fare_config.rate_per_km)
     except Exception as db_err:
         print(f"Database check exception, relying on presets: {db_err}")
-
-    print(f"\n--- DEBUG: ADMIN-DRIVEN FARE CALCULATOR ---")
-    print(f"Vehicle Category: {category} | Distance Matrix: {distance_km} km")
 
     forward_fare = 0.0
     return_charge = 0.0
@@ -376,7 +387,6 @@ def cancel_ride(booking_id):
     except Exception:
         minutes_passed = 0
 
-    # 🎯 NEW: Tiered Penalty Calculation Engine
     penalty_percentage = 0.0
     penalty_text = ""
 
@@ -393,7 +403,6 @@ def cancel_ride(booking_id):
         penalty_percentage = 0.05
         penalty_text = "5%"
 
-    # Apply the calculated penalty if they exceeded the 15-minute free grace period
     if penalty_percentage > 0.0:
         penalty = round(float(booking.estimated_fare) * penalty_percentage, 2)
         booking.status = "Cancelled"
@@ -409,7 +418,72 @@ def cancel_ride(booking_id):
 
 
 # ==========================================
-# 4. SAVE NEW LOCATION ROUTE
+# 4. RATINGS & TRUST & SAFETY INCIDENT REPORTING (NEW)
+# ==========================================
+@customer_bp.route('/rate-ride/<int:booking_id>', methods=['POST'])
+@login_required
+def rate_ride(booking_id):
+    booking = Booking.query.get_or_404(booking_id)
+    
+    # Security check
+    if booking.customer_id != current_user.id:
+        flash("Unauthorized action.", "danger")
+        return redirect(url_for('customer.dashboard'))
+        
+    if booking.status != "Completed":
+        flash("You can only rate completed rides.", "warning")
+        return redirect(url_for('customer.dashboard'))
+
+    rating = request.form.get('rating', type=float)
+    feedback = request.form.get('feedback', '').strip()
+
+    if rating and 1.0 <= rating <= 5.0:
+        booking.driver_rating = rating
+        booking.customer_feedback = feedback
+        db.session.commit()
+        flash("Thank you for your feedback!", "success")
+    else:
+        flash("Invalid rating submitted.", "danger")
+
+    return redirect(url_for('customer.dashboard'))
+
+
+@customer_bp.route('/report-incident/<int:booking_id>', methods=['POST'])
+@login_required
+def report_incident(booking_id):
+    booking = Booking.query.get_or_404(booking_id)
+    
+    # Security check
+    if booking.customer_id != current_user.id:
+        flash("Unauthorized action.", "danger")
+        return redirect(url_for('customer.dashboard'))
+
+    reason = request.form.get('reason', '').strip()
+    details = request.form.get('details', '').strip()
+
+    if reason:
+        # Protect against reporting a trip that hasn't been assigned a driver yet
+        reported_driver_id = booking.driver.user.id if booking.driver else 0
+        
+        new_report = IncidentReport(
+            booking_id=booking.id,
+            reporter_id=current_user.id,
+            reporter_role='Customer',
+            reported_user_id=reported_driver_id,
+            reason=reason,
+            details=details
+        )
+        db.session.add(new_report)
+        db.session.commit()
+        flash("Your report has been securely submitted to our Trust & Safety team.", "success")
+    else:
+        flash("You must provide a reason for the report.", "danger")
+
+    return redirect(url_for('customer.dashboard'))
+
+
+# ==========================================
+# 5. SAVE NEW LOCATION ROUTE
 # ==========================================
 @customer_bp.route('/add-location', methods=['POST'])
 @login_required
@@ -439,7 +513,7 @@ def add_location():
 
 
 # ==========================================
-# 5. ADD EMERGENCY CONTACT ROUTE
+# 6. ADD EMERGENCY CONTACT ROUTE
 # ==========================================
 @customer_bp.route('/add-contact', methods=['POST'])
 @login_required
