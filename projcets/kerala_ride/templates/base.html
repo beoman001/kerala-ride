@@ -21,17 +21,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <style>
-        /* Base Hamburger Button Structure */
+        /* 🛠️ INJECTING STRUCTURAL GRAPHICS OVERRIDES */
         .nav-hamburger {
             display: none;
             background: transparent;
             border: none;
             cursor: pointer;
-            width: 24px;
-            height: 20px;
+            width: 30px;
+            height: 22px;
             position: relative;
-            z-index: 10000;
-            padding: 0;
         }
         
         .nav-hamburger span {
@@ -39,20 +37,17 @@
             position: absolute;
             height: 3px;
             width: 100%;
-            background: #064e3b; /* Premium Brand Green */
+            background-color: #064e3b !important; /* Forces your primary brand green */
             border-radius: 9px;
-            opacity: 1;
             left: 0;
-            transform: rotate(0deg);
             transition: .25s ease-in-out;
         }
 
-        /* Position individual lines within button bounds */
         .nav-hamburger span:nth-child(1) { top: 0px; }
         .nav-hamburger span:nth-child(2) { top: 8px; }
         .nav-hamburger span:nth-child(3) { top: 16px; }
 
-        /* Animation morph states when menu panel slides active */
+        /* Animation when open toggle active */
         .nav-hamburger.open span:nth-child(1) {
             top: 8px;
             transform: rotate(135deg);
@@ -85,16 +80,16 @@
                 margin-bottom: 5px;
             }
             
-            /* 🎯 PREMIUM MOBILE NAV FIXES */
+            /* 🎯 RE-ENGINEERED RESPONSIVE LAYOUT MATRIX */
             .navbar {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
                 position: relative;
                 padding: 15px 0 !important;
             }
             
-            /* Hide the mobile nav link layout until hamburger activation */
+            /* Enforces dropdown execution */
             .nav-links {
                 display: none !important; 
                 flex-direction: column;
@@ -102,17 +97,17 @@
                 top: 100%;
                 left: 0;
                 right: 0;
-                background-color: #ffffff;
+                background-color: #ffffff !important;
                 box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
                 padding: 20px !important;
                 list-style: none;
-                z-index: 9999;
+                z-index: 99999 !important;
                 text-align: center;
                 gap: 15px;
                 margin: 0;
             }
 
-            /* Display the menu cleanly when layout triggers activate */
+            /* Absolute declaration rule forcing drop visibility */
             .nav-links.mobile-active {
                 display: flex !important;
             }
@@ -122,11 +117,11 @@
             }
 
             .nav-actions {
-                display: none !important; /* Managed cleanly via nav-links list on mobile */
+                display: none !important; 
             }
             
             .nav-hamburger {
-                display: block !important;
+                display: block !important; /* Pulls button out of absolute collapse zero states */
             }
         }
     </style>
@@ -138,7 +133,7 @@
     <header>
         <nav class="navbar container">
             <a class="brand" href="{{ url_for('main.index') }}" style="display: flex; align-items: center; gap: 10px; text-decoration: none;">
-                <img src="{{ url_for('static', filename='logo.png') }}" alt="KeralaRide Logo" style="height: 36px; width: auto; object-fit: contain;" onerror="this.style.display='none'">
+                <img src="/static/logo.png" alt="Logo" style="height: 36px; width: auto; max-width: 120px; object-fit: contain;" onerror="this.src='https://ui-avatars.com/api/?name=Kerala+Ride&background=064e3b&color=fff'">
                 <span>Kerala<span class="brand-accent">Ride</span></span>
             </a>
 
@@ -174,7 +169,9 @@
             </div>
 
             <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle navigation">
-                <span></span><span></span><span></span>
+                <span></span>
+                <span></span>
+                <span></span>
             </button>
         </nav>
     </header>
@@ -201,7 +198,7 @@
             <div class="footer-grid">
                 <div class="footer-col">
                     <div class="brand" style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
-                        <img src="{{ url_for('static', filename='logo.png') }}" alt="KeralaRide Logo" style="height: 30px; width: auto; object-fit: contain;" onerror="this.style.display='none'">
+                        <img src="/static/logo.png" alt="Logo" style="height: 30px; width: auto; object-fit: contain;" onerror="this.style.display='none'">
                         <span>Kerala<span class="brand-accent">Ride</span></span>
                     </div>
                     <p>Providing premium vehicle logistics and verified partner registries to secure and optimize transit across all 14 districts of Kerala.</p>
@@ -235,13 +232,9 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     
     <script>
-        // Automatically injects CSRF tokens into every HTML form across the entire site
         document.addEventListener("DOMContentLoaded", function() {
             const csrfToken = "{{ csrf_token() }}";
-            
-            // Find every POST form on the page
             document.querySelectorAll("form[method='POST'], form[method='post']").forEach(form => {
-                // Check if it already has a token, if not, inject it
                 if (!form.querySelector('input[name="csrf_token"]')) {
                     const hiddenInput = document.createElement("input");
                     hiddenInput.type = "hidden";
@@ -271,9 +264,18 @@
             const navLinks = document.getElementById("nav-links");
 
             if (hamburger && navLinks) {
-                hamburger.addEventListener("click", function() {
+                hamburger.addEventListener("click", function(e) {
+                    e.stopPropagation(); // Prevents instant bubbling collapse rules
                     navLinks.classList.toggle("mobile-active");
                     hamburger.classList.toggle("open");
+                });
+
+                // Auto-collapses the panel if a user clicks anywhere else on the screen context
+                document.addEventListener("click", function(e) {
+                    if (!hamburger.contains(e.target) && !navLinks.contains(e.target)) {
+                        navLinks.classList.remove("mobile-active");
+                        hamburger.classList.remove("open");
+                    }
                 });
             }
         });
