@@ -39,12 +39,51 @@
                 width: 100% !important; 
                 margin-bottom: 5px;
             }
-            /* Adjust navbar for mobile */
-            .nav-actions {
+            
+            /* 🎯 PREMIUM MOBILE NAV FIXES */
+            .navbar {
                 display: flex;
+                justify-content: space-between;
+                align-items: center;
+                position: relative;
+            }
+            
+            /* Hide the mobile nav link layout until hamburger activation */
+            .nav-links {
+                display: none !important; 
                 flex-direction: column;
-                gap: 10px;
-                margin-top: 15px;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background-color: #ffffff;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+                padding: 20px !important;
+                list-style: none;
+                z-index: 9999;
+                text-align: center;
+                gap: 15px;
+                margin: 0;
+            }
+
+            /* Display the menu cleanly when layout triggers activate */
+            .nav-links.mobile-active {
+                display: flex !important;
+            }
+            
+            .nav-links li {
+                width: 100%;
+            }
+
+            .nav-actions {
+                display: none !important; /* Managed securely within custom styles */
+            }
+            
+            .nav-hamburger {
+                display: block !important;
+                background: transparent;
+                border: none;
+                cursor: pointer;
             }
         }
     </style>
@@ -72,6 +111,10 @@
                     {% elif current_user.role == 'driver' %}
                         <li><a href="{{ url_for('driver.dashboard') }}" class="nav-link nav-link-role"><i class="fa-solid fa-steering-wheel"></i> Console</a></li>
                     {% endif %}
+                    <li><a href="{{ url_for('auth.logout') }}" class="nav-link text-danger"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+                {% else %}
+                    <li><a href="{{ url_for('auth.login') }}" class="nav-link">Login</a></li>
+                    <li><a href="{{ url_for('auth.register') }}" class="nav-link fw-bold text-success">Register</a></li>
                 {% endif %}
             </ul>
 
@@ -177,6 +220,20 @@
                 });
             });
         }
+    </script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const hamburger = document.getElementById("nav-hamburger");
+            const navLinks = document.getElementById("nav-links");
+
+            if (hamburger && navLinks) {
+                hamburger.addEventListener("click", function() {
+                    navLinks.classList.toggle("mobile-active");
+                    hamburger.classList.toggle("open");
+                });
+            }
+        });
     </script>
 
     {% block scripts %}{% endblock %}
