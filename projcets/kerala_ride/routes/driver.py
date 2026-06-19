@@ -278,3 +278,23 @@ def report_incident(booking_id):
         flash("You must provide a reason for the report.", "danger")
 
     return redirect(url_for('driver.dashboard'))
+
+
+# ==========================================
+# 🎯 ZERO-COST LIVE TELEMETRY LOGIC
+# ==========================================
+@socketio.on('driver_location_update')
+def handle_driver_location(data):
+    """
+    Catches raw coordinate packets transmitted by the driver via WebSockets.
+    Instantly bounces them over to the passenger listener loop using a scoped trip channel ID.
+    """
+    booking_id = data.get('booking_id')
+    lat = data.get('lat')
+    lng = data.get('lng')
+    
+    if booking_id and lat and lng:
+        socketio.emit(f'customer_track_{booking_id}', {
+            'lat': float(lat),
+            'lng': float(lng)
+        })
