@@ -13,7 +13,15 @@ from flask_limiter.util import get_remote_address
 
 # 1. Initialize extensions globally at the root package level
 db = SQLAlchemy()
-socketio = SocketIO(cors_allowed_origins="*", async_mode='threading')
+
+# 🎯 OPTIMIZED FOR FREE TIER INSTANCES: Tuned polling frames to maintain consistent connectivity
+socketio = SocketIO(
+    cors_allowed_origins="*", 
+    async_mode='threading',
+    ping_timeout=10,
+    ping_interval=5
+)
+
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Please log in to access this page.'
@@ -309,6 +317,8 @@ def seed_database(app):
             discount_percentage=20.0,
             expiry_date=now_utc() + timedelta(days=15)
         )
+        db.session.add_all([promo1, promo2])
+
         db.session.add_all([promo1, promo2])
 
         db.session.commit()
