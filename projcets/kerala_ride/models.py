@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import random
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -141,7 +142,15 @@ class Booking(db.Model):
     status = db.Column(db.String(30), default='Pending')
     # Pending, Accepted, Arrived, Active, Completed, Cancelled
 
+    # 🎯 UPDATED: Added method to dynamically generate this
     otp = db.Column(db.String(4), nullable=True)
+    
+    # 🎯 NEW: Scheduled time features
+    scheduled_time = db.Column(db.DateTime, nullable=True)
+    
+    # 🎯 NEW: Ratings & Feedback
+    driver_rating = db.Column(db.Float, nullable=True)
+    customer_feedback = db.Column(db.Text, nullable=True)
 
     # Goods-specific details
     material_description = db.Column(db.Text, nullable=True)
@@ -156,6 +165,10 @@ class Booking(db.Model):
     customer = db.relationship('User', foreign_keys=[customer_id], back_populates='bookings_as_customer')
     driver = db.relationship('Driver', foreign_keys=[driver_id], back_populates='bookings_as_driver')
     sos_alerts = db.relationship('SOSAlert', back_populates='booking', cascade="all, delete-orphan")
+
+    def generate_otp(self):
+        """Generates a random 4-digit OTP when the ride is accepted"""
+        self.otp = str(random.randint(1000, 9999))
 
     @property
     def display_fare(self):
@@ -294,3 +307,25 @@ class SupportTicket(db.Model):
 
     def __repr__(self):
         return f'<SupportTicket {self.id} | User ID: {self.user_id} | From: {self.email}>'
+
+# ==========================================
+# 12. INCIDENT REPORTING ENGINE (TRUST & SAFETY)
+# ==========================================
+class IncidentReport(db.Model):
+    __tablename__ = 'incident_reports'
+
+    id = db.Column(db.Integer, primary_key=True)
+    booking_id = db.Column(db.Integer, db.ForeignKey('bookings.id'), nullable=False)
+    reporter_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    reporter_role = db.Column(db.String(20), nullable=False)  # 'Customer' or 'Driver'
+    reported_user_id = db.Column(db.Integer, nullable=False)
+    reason = db.Column(db.String(255), nullable=False)
+    details = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=now_utc)
+
+    # Relationships
+    booking = db.relationship('Booking', backref=db.backref('incident_reports', lazy=True))
+    reporter = db.relationship('User', foreign_keys=[reporter_id])
+
+    def __repr__(self):
+        return f'<IncidentReport {self.id} | Booking: {self.booking_id} | By: {self.reporter_role}>'
