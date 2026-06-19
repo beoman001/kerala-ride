@@ -6,24 +6,53 @@
     <title>{% block title %}KeralaRide Connect{% endblock %}</title>
     <meta name="description" content="{% block meta_description %}Kerala's premier verified transport marketplace for passenger rides and goods logistics.{% endblock %}">
 
-    <!-- Preconnect for performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-    <!-- Google Fonts: Outfit -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 
-    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-    <!-- App Stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#064e3b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <style>
+        @media (max-width: 768px) {
+            .container {
+                padding-left: 15px !important;
+                padding-right: 15px !important;
+            }
+            .card-body {
+                padding: 20px !important; 
+            }
+            #map-canvas {
+                height: 250px !important; 
+            }
+            .nav-tabs-custom {
+                flex-direction: column; 
+            }
+            .btn {
+                width: 100% !important; 
+                margin-bottom: 5px;
+            }
+            /* Adjust navbar for mobile */
+            .nav-actions {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                margin-top: 15px;
+            }
+        }
+    </style>
 
     {% block head %}{% endblock %}
 </head>
 <body>
 
-    <!-- ===== NAVIGATION ===== -->
     <header>
         <nav class="navbar container">
             <a class="brand" href="{{ url_for('main.index') }}">
@@ -31,7 +60,6 @@
                 <span>Kerala<span class="brand-accent">Ride</span></span>
             </a>
 
-            <!-- Desktop Nav Links -->
             <ul class="nav-links" id="nav-links">
                 <li><a href="{{ url_for('main.about') }}" class="nav-link">About</a></li>
                 <li><a href="{{ url_for('main.offers') }}" class="nav-link">Offers</a></li>
@@ -59,14 +87,12 @@
                 {% endif %}
             </div>
 
-            <!-- Mobile hamburger -->
             <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle navigation">
                 <span></span><span></span><span></span>
             </button>
         </nav>
     </header>
 
-    <!-- ===== FLASH MESSAGES ===== -->
     <div class="flash-container container" id="flash-container">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -80,12 +106,10 @@
         {% endwith %}
     </div>
 
-    <!-- ===== PAGE CONTENT ===== -->
     <main>
         {% block content %}{% endblock %}
     </main>
 
-    <!-- ===== FOOTER ===== -->
     <footer>
         <div class="container">
             <div class="footer-grid">
@@ -109,40 +133,51 @@
                     <h4>Contact</h4>
                     <ul>
                         <li><i class="fa-solid fa-phone"></i> <a href="tel:+918590513605">+91 85905 13605</a></li>
-<li><i class="fa-solid fa-envelope"></i> <a href="mailto:beonbinesh972@gmail.com">beonbinesh972@gmail.com</a></li>
-<li><i class="fa-solid fa-location-dot"></i> Thekkedath Building, Piravom,Ernakulam, Kerala</li>
+                        <li><i class="fa-solid fa-envelope"></i> <a href="mailto:beonbinesh972@gmail.com">beonbinesh972@gmail.com</a></li>
+                        <li><i class="fa-solid fa-location-dot"></i> Thekkedath Building, Piravom, Ernakulam, Kerala</li>
                     </ul>
                 </div>
             </div>
             <div class="footer-bottom">
-                &copy; 2026 KeralaRide Connect (Pvt Ltd). All Rights Will be Reserved.
+                &copy; 2026 KeralaRide Connect (Pvt Ltd). All Rights Reserved.
             </div>
         </div>
     </footer>
 
-    <!-- ===== SCRIPTS ===== -->
-    <!-- Socket.IO CDN -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="{{ url_for('static', filename='js/socket.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
     <script>
-    // Automatically injects CSRF tokens into every HTML form across the entire site
-    document.addEventListener("DOMContentLoaded", function() {
-        const csrfToken = "{{ csrf_token() }}";
-        
-        // Find every POST form on the page
-        document.querySelectorAll("form[method='POST'], form[method='post']").forEach(form => {
-            // Check if it already has a token, if not, inject it
-            if (!form.querySelector('input[name="csrf_token"]')) {
-                const hiddenInput = document.createElement("input");
-                hiddenInput.type = "hidden";
-                hiddenInput.name = "csrf_token";
-                hiddenInput.value = csrfToken;
-                form.appendChild(hiddenInput);
-            }
+        // Automatically injects CSRF tokens into every HTML form across the entire site
+        document.addEventListener("DOMContentLoaded", function() {
+            const csrfToken = "{{ csrf_token() }}";
+            
+            // Find every POST form on the page
+            document.querySelectorAll("form[method='POST'], form[method='post']").forEach(form => {
+                // Check if it already has a token, if not, inject it
+                if (!form.querySelector('input[name="csrf_token"]')) {
+                    const hiddenInput = document.createElement("input");
+                    hiddenInput.type = "hidden";
+                    hiddenInput.name = "csrf_token";
+                    hiddenInput.value = csrfToken;
+                    form.appendChild(hiddenInput);
+                }
+            });
         });
-    });
-</script>
+    </script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}").then(function(registration) {
+                    console.log('PWA ServiceWorker registration successful with scope: ', registration.scope);
+                }, function(err) {
+                    console.log('PWA ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
 
     {% block scripts %}{% endblock %}
 </body>
