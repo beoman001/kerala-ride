@@ -204,7 +204,7 @@ def create_app(test_config=None):
             'GOODS_VEHICLES': GOODS_VEHICLES
         }
 
-    # 🎯 NEW CACHE ENGINE: Prevents mobile devices from re-downloading static files over the cell network
+    # 🎯 NEW CACHE ENGINE: Forces mobile devices to store static assets locally to eliminate network lag
     @app.after_request
     def add_header(response):
         if 'Cache-Control' not in response.headers and request.path.startswith('/static/'):
