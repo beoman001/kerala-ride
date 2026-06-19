@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timedelta, timezone
-from flask import Flask, render_template, session
+from flask import Flask, render_template, session, request
 from flask_login import LoginManager
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
@@ -204,6 +204,13 @@ def create_app(test_config=None):
             'GOODS_VEHICLES': GOODS_VEHICLES
         }
 
+    # 🎯 NEW CACHE ENGINE: Prevents mobile devices from re-downloading static files over the cell network
+    @app.after_request
+    def add_header(response):
+        if 'Cache-Control' not in response.headers and request.path.startswith('/static/'):
+            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        return response
+
     return app
 
 def seed_database(app):
@@ -317,8 +324,6 @@ def seed_database(app):
             discount_percentage=20.0,
             expiry_date=now_utc() + timedelta(days=15)
         )
-        db.session.add_all([promo1, promo2])
-
         db.session.add_all([promo1, promo2])
 
         db.session.commit()
