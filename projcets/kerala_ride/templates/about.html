@@ -3,6 +3,33 @@
 {% block title %}About Us - KeralaRide Connect{% endblock %}
 
 {% block content %}
+<style>
+    /* Developer Bio Card Styles */
+    .bio-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        padding: 40px;
+        text-align: center;
+        max-width: 650px;
+        margin: 0 auto;
+        border-top: 5px solid var(--primary-color);
+    }
+    .bio-img {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid var(--primary-color);
+        margin-bottom: 20px;
+    }
+    /* Mobile Responsiveness for this page */
+    @media (max-width: 768px) {
+        .bio-card { padding: 25px; }
+        .bio-img { width: 120px; height: 120px; }
+    }
+</style>
+
 <section style="background-color: var(--primary-color); color: white; padding: 60px 0; text-align: center;">
     <div class="container">
         <h1>About KeralaRide Connect</h1>
@@ -11,15 +38,16 @@
 </section>
 
 <section class="container" style="padding: 60px 0; flex-grow: 1;">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 40px; margin-bottom: 40px;">
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 40px; margin-bottom: 60px;">
         <div>
             <h2 style="margin-bottom: 15px;">Our Vision</h2>
             <p style="color: var(--text-muted); margin-bottom: 20px;">KeralaRide Connect was established to solve a unique challenge: connecting passenger commutes and goods transport under one transparent regional platform. By collaborating with local bodies (panchayats, municipalities, and corporations), we make sure commercial vehicle operations run in harmony with community safety guidelines.</p>
             <p style="color: var(--text-muted);">From Trivandrum to Kasaragod, we support Kerala's local drivers by giving them a digital portal to find jobs without middleman commissions, keeping fares affordable for customers.</p>
         </div>
-        <div class="card glass-card" style="border-left: 5px solid var(--accent-amber);">
+        <div class="card glass-card" style="border-left: 5px solid var(--accent-amber); padding: 25px;">
             <h3 style="margin-bottom: 15px;">Supported Vehicle Network</h3>
-            <ul style="list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 14px;">
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 14px; padding-left: 0;">
                 <li><i class="fa-solid fa-circle-check" style="color: var(--accent-success);"></i> <strong>Auto Rickshaw:</strong> Short commutes in urban and village lanes</li>
                 <li><i class="fa-solid fa-circle-check" style="color: var(--accent-success);"></i> <strong>Taxi / Standard Cars:</strong> Inter-city comfort rides</li>
                 <li><i class="fa-solid fa-circle-check" style="color: var(--accent-success);"></i> <strong>MPV / Innova:</strong> Premium 7-seater family tourism</li>
@@ -28,5 +56,23 @@
             </ul>
         </div>
     </div>
+
+    <div class="bio-card">
+        <img src="{{ url_for('static', filename='beon.jpg') }}" alt="Beon Binesh Thekkedath" class="bio-img" onerror="this.src='https://ui-avatars.com/api/?name=Beon+Binesh&background=064e3b&color=fff&size=150'">
+        
+        <h2 style="font-weight: 800; color: #111827; margin-top: 10px; font-size: 24px;">Beon Binesh Thekkedath</h2>
+        <h5 style="color: var(--primary-color); margin-bottom: 20px;">Lead Architect & Developer</h5>
+        
+        <p style="color: #4b5563; line-height: 1.6; font-size: 15px; text-align: justify;">
+            KeralaRide Connect was engineered from the ground up to solve the fragmented transport logistics in Kerala. Built with a robust Python backend, fault-tolerant mathematical mapping matrices, and real-time SocketIO telemetry, this platform bridges the gap between passengers, local drivers, and regional freight dispatchers.
+        </p>
+        
+        <div style="margin-top: 25px; display: flex; justify-content: center;">
+            <a href="https://linkedin.com/in/your-profile" target="_blank" class="btn btn-outline btn-sm" style="border-color: #0077b5; color: #0077b5; width: auto !important; padding: 8px 20px;">
+                <i class="fa-brands fa-linkedin"></i> Connect on LinkedIn
+            </a>
+        </div>
+    </div>
+
 </section>
 {% endblock %}
