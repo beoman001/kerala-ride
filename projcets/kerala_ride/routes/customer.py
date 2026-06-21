@@ -50,7 +50,6 @@ def send_sms_alert(to_phone, message_body):
 
     try:
         client = Client(account_sid, auth_token)
-        # Standardize number formatting to follow E.164 requirements for India (+91)
         formatted_phone = to_phone if to_phone.startswith('+') else f"+91{to_phone}"
         
         client.messages.create(
@@ -76,10 +75,8 @@ def processed_delayed_sms_broadcast(booking_id, district, vehicle_cat):
     Utilizes database row-locking rules to check booking statuses safely.
     """
     try:
-        # 🛡️ PESSIMISTIC ROW LOCK: select ... for update locks this row until the transaction finishes
         check_booking = db.session.query(Booking).filter_by(id=booking_id).with_for_update().first()
         
-        # 💰 WALLET SAVER CHECK: If a driver claimed the job over WebSockets, drop execution instantly
         if not check_booking or check_booking.status != "Pending":
             print(f"💰 Celery Savings Rule: Booking ID {booking_id} has already been claimed. Aborting SMS.")
             db.session.commit()
@@ -111,7 +108,6 @@ def processed_delayed_sms_broadcast(booking_id, district, vehicle_cat):
             if has_matching_vehicle and driver.user and driver.user.phone:
                 send_sms_alert(driver.user.phone, sms_message)
                 
-        # Commit row lock parameters cleanly
         db.session.commit()
 
     except Exception as queue_err:
@@ -120,56 +116,67 @@ def processed_delayed_sms_broadcast(booking_id, district, vehicle_cat):
 
 
 # ==========================================
-# 1. CUSTOMER BOOKING PAGE ROUTE (CELERY ENABLED)
+# 1. CUSTOMER BOOKING PAGE ROUTE (HARDENED FOR MOBILE SAFETY)
 # ==========================================
 @customer_bp.route('/book', methods=['GET', 'POST'])
 @login_required
 def book():
     if request.method == 'POST':
-        booking_type = request.form.get('booking_type', 'passenger').strip()
-        pickup = request.form.get('pickup', '').strip()
-        destination = request.form.get('destination', '').strip()
-        
-        # Fallback lookup layer to read the specific variant fields if master field drops blank
-        vehicle_category = request.form.get('vehicle_category')
-        if not vehicle_category:
-            if booking_type == 'goods':
-                vehicle_category = request.form.get('vehicle_category_goods')
-            else:
-                vehicle_category = request.form.get('vehicle_category_passenger')
-        
-        payment_method = request.form.get('payment_method', 'Cash')
-        promo_code = request.form.get('promo_code', '').strip().upper()
-        
-        # Safe float casting handles
-        estimated_fare_raw = request.form.get('estimated_fare', '0.0').strip()
-        estimated_fare = float(estimated_fare_raw) if estimated_fare_raw else 0.0
-        
-        pickup_district = request.form.get('pickup_district', '').strip()
-
-        # Goods cargo details
-        material_description = request.form.get('material_description', '').strip()
-        weight_raw = request.form.get('weight', '0.0').strip()
-        weight = float(weight_raw) if (booking_type == 'goods' and weight_raw) else None
-
-        # Parse Scheduled Time
-        scheduled_time_raw = request.form.get('scheduled_time')
-        parsed_scheduled_time = None
-        if scheduled_time_raw:
-            try:
-                parsed_scheduled_time = datetime.strptime(scheduled_time_raw, '%Y-%m-%dT%H:%M')
-            except ValueError:
-                print(f"Warning: Failed to parse scheduled time: {scheduled_time_raw}")
-
-        # Default string assignment prevents database column constraints from flagging null errors
-        if not vehicle_category:
-            vehicle_category = "Auto Rickshaw" if booking_type == "passenger" else "Goods Auto"
-
-        if not pickup or not destination:
-            flash("Please supply precise locations via the map markers before booking.", "danger")
-            return redirect(url_for('main.book_ride'))
-
         try:
+            booking_type = request.form.get('booking_type', 'passenger').strip()
+            pickup = request.form.get('pickup', '').strip()
+            destination = request.form.get('destination', '').strip()
+            
+            # Fallback lookup layer to read the specific variant fields if master field drops blank
+            vehicle_category = request.form.get('vehicle_category')
+            if not vehicle_category:
+                if booking_type == 'goods':
+                    vehicle_category = request.form.get('vehicle_category_goods')
+                else:
+                    vehicle_category = request.form.get('vehicle_category_passenger')
+            
+            payment_method = request.form.get('payment_method', 'Cash')
+            promo_code = request.form.get('promo_code', '').strip().upper()
+            
+            # Safe float casting handles
+            estimated_fare_raw = request.form.get('estimated_fare', '0.0').strip()
+            estimated_fare = float(estimated_fare_raw) if estimated_fare_raw else 0.0
+            
+            pickup_district = request.form.get('pickup_district', '').strip()
+
+            # Goods cargo details
+            material_description = request.form.get('material_description', '').strip()
+            weight_raw = request.form.get('weight', '0.0').strip()
+            weight = float(weight_raw) if (booking_type == 'goods' and weight_raw) else None
+
+            # Parse Scheduled Time
+            scheduled_time_raw = request.form.get('scheduled_time')
+            parsed_scheduled_time = None
+            if scheduled_time_raw:
+                try:
+                    parsed_scheduled_time = datetime.strptime(scheduled_time_raw, '%Y-%m-%dT%H:%M')
+                except ValueError:
+                    print(f"Warning: Failed to parse scheduled time: {scheduled_time_raw}")
+
+            # Default string assignment prevents database column constraints from flagging null errors
+            if not vehicle_category:
+                vehicle_category = "Auto Rickshaw" if booking_type == "passenger" else "Goods Auto"
+
+            if not pickup or not destination:
+                flash("Please supply precise locations via the map markers before booking.", "danger")
+                return redirect(url_for('main.book_ride'))
+
+            # 🛠️ MOBILE SAFETY OVERRIDE: Prevent empty coordinate parameters from crashing SQL constraints
+            p_lat_raw = request.form.get('pickup_lat', '').strip()
+            p_lng_raw = request.form.get('pickup_lng', '').strip()
+            d_lat_raw = request.form.get('dest_lat', '').strip()
+            d_lng_raw = request.form.get('dest_lng', '').strip()
+
+            pickup_lat = float(p_lat_raw) if p_lat_raw else 9.9816
+            pickup_lng = float(p_lng_raw) if p_lng_raw else 76.2999
+            dest_lat = float(d_lat_raw) if d_lat_raw else 9.9312
+            dest_lng = float(d_lng_raw) if d_lng_raw else 76.2673
+
             # Map parameters perfectly to your database model columns
             new_booking = Booking(
                 customer_id=current_user.id,
@@ -182,6 +189,10 @@ def book():
                 material_description=material_description if booking_type == 'goods' else None,
                 weight=weight,
                 scheduled_time=parsed_scheduled_time,
+                pickup_lat=pickup_lat,
+                pickup_lng=pickup_lng,
+                dest_lat=dest_lat,
+                dest_lng=dest_lng,
                 status="Pending"
             )
 
@@ -221,8 +232,8 @@ def book():
 
         except Exception as e:
             db.session.rollback()
-            print(f"Database Insertion Error: {e}")
-            flash("An error occurred while creating your booking. Please try again.", "danger")
+            print(f"🚨 Critical Mobile Form Crash Catch: {e}")
+            flash("An internal parameter alignment error occurred. Please drop pin markers clearly and retry.", "danger")
             return redirect(url_for('main.book_ride'))
 
     locations = []
@@ -261,7 +272,6 @@ def estimate_fare():
         d_lat = data.get('dest_lat')
         d_lng = data.get('dest_lng')
 
-        # If for some reason the hidden fields are empty, fall back to regex text extraction
         if not p_lat or not p_lng or not d_lat or not d_lng:
             pickup_nums = re.findall(r"[-+]?\d*\.\d+|\d+", pickup)
             dest_nums = re.findall(r"[-+]?\d*\.\d+|\d+", destination)
@@ -273,7 +283,6 @@ def estimate_fare():
                 p_lat, p_lng = 9.9816, 76.2999
                 d_lat, d_lng = 9.9312, 76.2673
         else:
-            # Cast the exact hidden HTML numeric values cleanly
             p_lat, p_lng = float(p_lat), float(p_lng)
             d_lat, d_lng = float(d_lat), float(d_lng)
             
@@ -372,11 +381,8 @@ def estimate_fare():
 def dashboard():
     try:
         user_bookings = Booking.query.filter_by(customer_id=current_user.id).order_by(Booking.id.desc()).all()
-        
-        # ⚡ FIX: Inject a temporary custom runtime attribute map helper onto each object to fulfill template criteria
         for booking in user_bookings:
             booking.display_fare = booking.estimated_fare
-            
     except Exception as e:
         print(f"Error loading dashboard bookings: {e}")
         user_bookings = []
