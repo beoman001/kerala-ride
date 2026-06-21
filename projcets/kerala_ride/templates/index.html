@@ -130,41 +130,6 @@
         display: none;
     }
 
-    /* ==========================================================================
-       📦 FARE PREVIEW & STOPS INPUT SYSTEM
-       ========================================================================== */
-    .stop-input-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 12px;
-    }
-
-    .remove-stop-btn {
-        background: transparent;
-        border: none;
-        color: var(--accent-danger, #dc2626);
-        cursor: pointer;
-        padding: 8px;
-        font-size: 18px;
-    }
-
-    .fare-calculator-sheet {
-        margin-top: 18px;
-        background-color: #f8fafc;
-        border-radius: 20px;
-        padding: 20px;
-        border: 1px solid var(--border-color, #e2e8f0);
-    }
-
-    .fare-breakdown-row {
-        display: flex;
-        justify-content: space-between;
-        font-size: 15px;
-        margin-bottom: 8px;
-        color: var(--text-muted, #4b5563);
-    }
-
     /* 🚖 HORIZONTAL VEHICLE SELECTOR CAROUSEL */
     .tier-carousel-container {
         display: flex;
@@ -178,12 +143,13 @@
     .tier-carousel-container::-webkit-scrollbar { display: none; }
 
     .tier-card {
-        flex: 0 0 105px;
+        flex: 1;
+        min-width: 100px;
         scroll-snap-align: start;
         background: #f8fafc;
         border: 2px solid #e2e8f0;
         border-radius: 16px;
-        padding: 12px 8px;
+        padding: 16px 8px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -191,56 +157,9 @@
         cursor: pointer;
         transition: all 0.2s ease;
     }
-    .tier-card.active {
-        border-color: var(--primary-color, #064e3b);
-        background: #f0fdf4;
-        box-shadow: 0 4px 12px rgba(6, 78, 59, 0.1);
-    }
     .tier-card img { width: 52px; height: auto; margin-bottom: 6px; }
-    .tier-card h4 { font-size: 13px; font-weight: 700; margin: 0; color: #1f2937; white-space: nowrap; }
+    .tier-card h4 { font-size: 14px; font-weight: 700; margin: 0; color: #1f2937; white-space: nowrap; }
     .tier-card span { font-size: 11px; color: #6b7280; margin-top: 2px; }
-    .tier-price { font-size: 13px; font-weight: 800; color: var(--primary-color); margin-top: 4px; }
-
-    /* 💳 PAYMENT SELECTION DRAWER CONFIGURATION */
-    .payment-method-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: #f1f5f9;
-        padding: 12px 16px;
-        border-radius: 14px;
-        margin-top: 14px;
-        cursor: pointer;
-    }
-
-    .payment-options-drawer {
-        position: fixed;
-        bottom: -100%;
-        left: 0;
-        width: 100%;
-        background: #ffffff;
-        border-radius: 24px 24px 0 0;
-        box-shadow: 0 -10px 30px rgba(0,0,0,0.15);
-        z-index: 100005;
-        padding: 24px 20px;
-        transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .payment-options-drawer.active { bottom: 0; }
-    
-    .pay-option {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 16px;
-        border-radius: 12px;
-        margin-bottom: 10px;
-        border: 1px solid #e2e8f0;
-        cursor: pointer;
-    }
-    .pay-option.selected {
-        border-color: var(--primary-color);
-        background: #f0fdf4;
-    }
 
     .chat-drawer-container {
         position: fixed;
@@ -309,7 +228,6 @@
         padding-bottom: env(safe-area-inset-bottom, 20px); 
     }
 
-    /* ⚡ THE FIX FOR INVISIBLE CHAT TEXT */
     .direct-messenger-input {
         flex: 1;
         height: 54px !important;
@@ -361,152 +279,48 @@
     <button class="floating-sos-trigger" id="sos-btn" aria-label="SOS Alert"><i class="fa-solid fa-shield-heart"></i></button>
     <button class="floating-chat-toggle" id="chat-toggle-btn" aria-label="Open Chat"><i class="fa-solid fa-comment-dots"></i></button>
 
-    <div id="home-live-map" style="position: absolute; top: 0; left: 0; width: 100%; height: 45%; z-index: 1;"></div>
+    <div id="home-live-map" style="position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 1;"></div>
 
-    <div class="booking-bottom-sheet">
+    <div class="booking-bottom-sheet" style="height: 50%; max-height: 50vh;">
         <div class="sheet-drag-handle"></div>
 
-        <div style="margin-bottom: 12px;">
-            <h2 class="greeting" style="margin:0; font-size:22px; font-weight:800;">Where to?</h2>
+        <div style="margin-bottom: 8px; text-align: center;">
+            <h2 class="greeting" style="margin:0; font-size:22px; font-weight:800; color: var(--primary-color);">On-Demand Fleet Dispatch</h2>
+            <p style="margin: 4px 0 0 0; font-size: 13px; color: var(--text-muted);">Select service parameters to configure route options</p>
         </div>
 
-        <div class="search-routing-container">
-            <div class="stop-input-row">
-                <i class="fa-solid fa-circle-dot" style="color: var(--accent-blue); width: 20px; font-size:16px; text-align:center;"></i>
-                <input type="text" id="start-node" class="form-control generic-large-input" placeholder="Verifying current tracking coordinates..." readonly>
+        <div class="tier-carousel-container" id="vehicle-tier-carousel">
+            <div class="tier-card">
+                <img src="https://img.icons8.com/color/96/000000/auto-rickshaw.png" alt="Auto">
+                <h4>Auto</h4>
+                <span>Local Budget</span>
             </div>
-            
-            <div id="dynamic-stops-wrapper"></div>
-
-            <div class="stop-input-row">
-                <i class="fa-solid fa-location-pin" style="color: var(--accent-danger); width: 20px; font-size:18px; text-align:center;"></i>
-                <input type="text" id="end-node" class="form-control generic-large-input" placeholder="Enter drop destination...">
+            <div class="tier-card">
+                <img src="https://img.icons8.com/color/96/000000/hatchback.png" alt="Mini">
+                <h4>Mini Cars</h4>
+                <span>Hatchbacks</span>
             </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px;">
-                <div>
-                    <label class="form-label" style="font-size:13px; margin-bottom:6px; font-weight:600;">Stopover Wait Time</label>
-                    <select id="pricing-wait-select" class="form-control generic-large-input" style="padding: 0 14px;">
-                        <option value="0">No Stopover Wait</option>
-                        <option value="1">1 Hour Stop (+₹100)</option>
-                        <option value="2">2 Hours Stop (+₹200)</option>
-                        <option value="4">4 Hours Stop (+₹400)</option>
-                        <option value="8">Full Day Wait (+₹800)</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="form-label" style="font-size:13px; margin-bottom:6px; font-weight:600;">Overnight Halt</label>
-                    <select id="pricing-stay-select" class="form-control generic-large-input" style="padding: 0 14px;">
-                        <option value="0">Same Day Return</option>
-                        <option value="1">1 Night Stay (+₹1000)</option>
-                        <option value="2">2 Nights Stay (+₹2000)</option>
-                    </select>
-                </div>
+            <div class="tier-card">
+                <img src="https://img.icons8.com/color/96/000000/car.png" alt="Sedan">
+                <h4>Sedan</h4>
+                <span>Standard Travel</span>
             </div>
-
-            <div class="tier-carousel-container" id="vehicle-tier-carousel">
-                <div class="tier-card active" data-multiplier="1.0" data-tier="auto">
-                    <img src="https://img.icons8.com/color/96/000000/auto-rickshaw.png" alt="Auto">
-                    <h4>Auto</h4>
-                    <span>3 min away</span>
-                    <div class="tier-price" id="price-auto">₹0</div>
-                </div>
-                <div class="tier-card" data-multiplier="1.3" data-tier="mini">
-                    <img src="https://img.icons8.com/color/96/000000/hatchback.png" alt="Mini">
-                    <h4>Mini</h4>
-                    <span>2 min away</span>
-                    <div class="tier-price" id="price-mini">₹0</div>
-                </div>
-                <div class="tier-card" data-multiplier="1.6" data-tier="sedan">
-                    <img src="https://img.icons8.com/color/96/000000/car.png" alt="Sedan">
-                    <h4>Sedan</h4>
-                    <span>5 min away</span>
-                    <div class="tier-price" id="price-sedan">₹0</div>
-                </div>
-                <div class="tier-card" data-multiplier="2.1" data-tier="suv">
-                    <img src="https://img.icons8.com/color/96/000000/suv.png" alt="SUV">
-                    <h4>SUV</h4>
-                    <span>4 min away</span>
-                    <div class="tier-price" id="price-suv">₹0</div>
-                </div>
-            </div>
-
-            <div class="payment-method-row" id="payment-trigger-box">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <i class="fa-solid fa-wallet" style="color:var(--primary-color); font-size:18px;"></i>
-                    <span id="selected-payment-label" style="font-weight:600; font-size:14px; color:#1f2937;">Cash Payment</span>
-                </div>
-                <i class="fa-solid fa-chevron-right" style="font-size:12px; color:#9ca3af;"></i>
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:12px; margin-top:16px;">
-                <div style="display:flex; gap:12px; width:100%;">
-                    <button class="btn btn-outline" id="add-stop-node-btn" style="flex:1; min-height:54px; border-radius:14px; font-size:15px; font-weight:700; margin:0;">
-                        <i class="fa-solid fa-plus-circle"></i> Add Stop
-                    </button>
-                    <button class="btn btn-primary" id="calculate-fare-btn" style="flex:1; min-height:54px; border-radius:14px; font-size:15px; font-weight:700; margin:0;">
-                        <i class="fa-solid fa-calculator"></i> Calculate Fare
-                    </button>
-                </div>
-                
-                <button class="btn btn-accent" id="main-book-ride-execution-btn" style="width:100%; min-height:56px; border-radius:14px; font-size:16px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; box-shadow:0 4px 14px rgba(217, 119, 6, 0.25); margin:0;">
-                    <i class="fa-solid fa-car-tunnel"></i> Book Ride Now
-                </button>
+            <div class="tier-card">
+                <img src="https://img.icons8.com/color/96/000000/suv.png" alt="SUV">
+                <h4>Premium SUV</h4>
+                <span>Group Travel</span>
             </div>
         </div>
 
-        <div id="fare-summary-panel" class="fare-calculator-sheet" style="display:none;">
-            <div class="fare-breakdown-row" style="font-weight:700; color:var(--primary-color); border-bottom:1px dashed #cbd5e1; padding-bottom:8px; margin-bottom:12px; font-size:16px;">
-                <span>Total Calculated Route:</span>
-                <span id="rendered-distance">0.00 km</span>
-            </div>
-            <div class="fare-breakdown-row"><span>Baseline Distance Cost:</span><span id="base-fare-val">₹0.00</span></div>
-            <div class="fare-breakdown-row"><span>Intermediate Waiting Charge:</span><span id="wait-fare-val">₹0.00</span></div>
-            <div class="fare-breakdown-row"><span>Driver Stay Allowance:</span><span id="stay-fare-val">₹0.00</span></div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px;">
+            <a href="{{ url_for('main.book_ride') }}?booking_type=passenger" class="btn btn-primary" style="min-height:56px; border-radius:14px; font-size:15px; font-weight:800; text-transform:uppercase; text-align:center;">
+                <i class="fa-solid fa-car-side"></i> Book a Ride
+            </a>
+            <a href="{{ url_for('main.book_ride') }}?booking_type=goods" class="btn btn-accent" style="min-height:56px; border-radius:14px; font-size:15px; font-weight:800; text-transform:uppercase; text-align:center;">
+                <i class="fa-solid fa-box"></i> Transport Goods
+            </a>
         </div>
     </div>
-</div>
-
-<div class="payment-options-drawer" id="payment-options-drawer">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <h3 style="margin:0; font-size:16px; font-weight:800;">Choose Payment Method</h3>
-        <button onclick="document.getElementById('payment-options-drawer').classList.remove('active')" style="background:none; border:none; font-size:18px; margin-left:auto; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div class="pay-option selected" data-method="cash">
-        <i class="fa-solid fa-money-bill-wave" style="color:#16a34a; font-size:20px;"></i>
-        <div style="text-align:left;">
-            <strong style="display:block; font-size:14px;">Cash Payment</strong>
-            <span style="font-size:12px; color:#6b7280;">Pay driver after drop</span>
-        </div>
-    </div>
-    <div class="pay-option" data-method="upi">
-        <i class="fa-solid fa-mobile-screen-button" style="color:#0284c7; font-size:20px;"></i>
-        <div style="text-align:left;">
-            <strong style="display:block; font-size:14px;">UPI Payment (GPay/PhonePe)</strong>
-            <span style="font-size:12px; color:#6b7280;">Instant secure mobile authorization</span>
-        </div>
-    </div>
-</div>
-
-<div class="more-menu-sheet" id="more-menu-sheet">
-    <div class="menu-header">
-        <h3 style="font-size:18px; font-weight:800; color:var(--primary-color);">Emergency Safety Contacts</h3>
-        <button onclick="document.getElementById('more-menu-sheet').classList.remove('active')" style="background:#f1f5f9; border:none; width:36px; height:32px; border-radius:50%;"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    
-    <form action="{{ url_for('main.update_emergency_contact') }}" method="POST">
-        <div class="form-group">
-            <label class="form-label">Trusted Person Name</label>
-            <input type="text" name="contact_name" class="form-control generic-large-input" placeholder="e.g., Parent / Spouse Contact Name" required>
-        </div>
-        <div class="form-group">
-            <label class="form-label">Trusted Safety Phone Number</label>
-            <input type="tel" name="contact_phone" class="form-control generic-large-input" placeholder="e.g., +91 98765 43210" required>
-        </div>
-        <button type="submit" class="btn btn-primary" style="width:100%; min-height:54px; font-size:15px; font-weight:700; border-radius:12px;">
-            <i class="fa-solid fa-floppy-disk"></i> Secure Safety Contacts
-        </button>
-    </form>
 </div>
 
 <div class="chat-drawer-container" id="chat-drawer">
@@ -515,13 +329,13 @@
             <h3 style="margin:0; font-size:16px;">Live Messenger</h3>
             <span style="font-size:12px; color:var(--accent-success, #16a34a);"><i class="fa-solid fa-circle" style="font-size:8px;"></i> Secure Tunnel Active</span>
         </div>
-        <button onclick="document.getElementById('chat-drawer').classList.remove('active')" style="background:#f1f5f9; border:none; width:32px; height:32px; border-radius:50%;"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="document.getElementById('chat-drawer').classList.remove('active');" style="background:#f1f5f9; border:none; width:32px; height:32px; border-radius:50%;"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="chat-messages-container" id="chat-msg-box">
         <div class="chat-bubble received">Welcome to Support channels. Coordinate directions or parameters here safely.</div>
     </div>
     <div class="chat-input-area">
-        <input type="text" class="form-control direct-messenger-input" id="chat-input-field" placeholder="Type message to driver...">
+        <input type="text" class="form-control direct-messenger-input" id="chat-input-field" placeholder="Type message...">
         <button class="btn btn-primary direct-messenger-btn" id="chat-send-btn"><i class="fa-solid fa-paper-plane"></i></button>
     </div>
 </div>
@@ -534,7 +348,6 @@
     window.addEventListener('online', updateNetworkConnectionStatus);
     window.addEventListener('offline', updateNetworkConnectionStatus);
 
-    // 🚀 Splash Screen Timeout fixed from 2200 to 2800 so typewriter finishes smoothly
     window.addEventListener('load', function() {
         setTimeout(function() {
             const splash = document.getElementById('splash-screen');
@@ -552,9 +365,7 @@
 
     var currentLatitude = 9.9816;
     var currentLongitude = 76.2999;
-    var activeRouteLine = null;
     var simulatedDrivers = [];
-    var baseCalculatedFare = 0;
 
     document.addEventListener("DOMContentLoaded", function() {
         updateNetworkConnectionStatus(); 
@@ -570,9 +381,8 @@
             wheelDebounceTime: 150
         }).setView([currentLatitude, currentLongitude], 14);
 
-        // ⚡ TURBO-CHARGED MAP CONFIGURATION (Fast Pre-loading)
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap contributors © CARTO',
             maxZoom: 19,
             updateWhenIdle: false,
             keepBuffer: 8,
@@ -590,13 +400,6 @@
 
         const homeLayout = document.querySelector('.app-home-layout');
         if (homeLayout) { resizeObserver.observe(homeLayout); }
-        
-        const chatToggle = document.getElementById("chat-toggle-btn");
-        if(chatToggle) {
-            chatToggle.addEventListener("click", function() {
-                setTimeout(() => { map.invalidateSize(); }, 350);
-            });
-        }
 
         var userDotIcon = L.divIcon({
             className: 'custom-user-dot',
@@ -618,7 +421,7 @@
             
             const cabIcon = L.divIcon({ className: 'cab-marker-node', html: driverIconHtml, iconSize: [28, 28] });
 
-            for(let i = 0; i < 4; i++) {
+            for(let i = 0; i < 6; i++) {
                 let dLat = lat + (Math.random() - 0.5) * 0.015;
                 let dLng = lng + (Math.random() - 0.5) * 0.015;
                 let marker = L.marker([dLat, dLng], { icon: cabIcon }).addTo(map);
@@ -641,222 +444,7 @@
                 var pos = [currentLatitude, currentLongitude];
                 map.setView(pos, 14);
                 userMarker.setLatLng(pos);
-                document.getElementById("start-node").value = "Current Location (" + currentLatitude.toFixed(4) + ", " + currentLongitude.toFixed(4) + ")";
                 seedNearbyDrivers(currentLatitude, currentLongitude);
-            });
-        }
-
-        async function fetchOmsRoutePolyline(waypoints) {
-            if (activeRouteLine) { map.removeLayer(activeRouteLine); }
-            
-            const coordinateString = waypoints.map(w => `${w[1]},${w[0]}`).join(';');
-            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordinateString}?overview=full&geometries=geojson`;
-
-            try {
-                const response = await fetch(osrmUrl);
-                const data = await response.json();
-
-                if (data.code === 'Ok' && data.routes.length > 0) {
-                    const routeGeoJson = data.routes[0].geometry;
-                    const preciseDistanceKm = data.routes[0].distance / 1000;
-
-                    activeRouteLine = L.geoJSON(routeGeoJson, {
-                        style: { color: '#0284c7', weight: 5, opacity: 0.8 }
-                    }).addTo(map);
-
-                    map.fitBounds(activeRouteLine.getBounds(), { padding: [30, 30] });
-                    return preciseDistanceKm;
-                }
-            } catch (err) {
-                console.warn("OSRM error, falling back to straight mathematical grid paths", err);
-            }
-            return null;
-        }
-
-        const addStopBtn = document.getElementById("add-stop-node-btn");
-        const stopsWrapper = document.getElementById("dynamic-stops-wrapper");
-
-        if(addStopBtn && stopsWrapper) {
-            addStopBtn.addEventListener("click", function() {
-                const stopCount = stopsWrapper.children.length + 1;
-                if(stopCount > 4) return alert("Stop limits capped at 4.");
-                
-                const stopRow = document.createElement("div");
-                stopRow.className = "stop-input-row animate-stop";
-                stopRow.innerHTML = `
-                    <i class="fa-solid fa-diamond" style="color: var(--accent-amber); font-size:11px; width:20px; text-align:center;"></i>
-                    <input type="text" class="form-control generic-large-input intermediate-stop-input" placeholder="Stop ${stopCount} destination location...">
-                    <button class="remove-stop-btn" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash-can"></i></button>
-                `;
-                stopsWrapper.appendChild(stopRow);
-            });
-        }
-
-        const calculateFareBtn = document.getElementById("calculate-fare-btn");
-        const farePanel = document.getElementById("fare-summary-panel");
-
-        if(calculateFareBtn && farePanel) {
-            calculateFareBtn.addEventListener("click", async function() {
-                const targetDest = document.getElementById("end-node").value.trim();
-                if(!targetDest) return alert("Please specify your final target drop location.");
-
-                calculateFareBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mapping Route...`;
-                calculateFareBtn.disabled = true;
-
-                async function geocodeAddress(addressText) {
-                    try {
-                        const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addressText + ", Kerala")}`;
-                        const response = await fetch(searchUrl, {
-                            headers: { 'User-Agent': 'KeralaRideConnectPWA' }
-                        });
-                        const searchData = await response.json();
-                        if(searchData && searchData.length > 0) {
-                            return [parseFloat(searchData[0].lat), parseFloat(searchData[0].lon)];
-                        }
-                    } catch (err) {
-                        console.error("Geocoding failed for: " + addressText, err);
-                    }
-                    return null;
-                }
-
-                let realWaypoints = [[currentLatitude, currentLongitude]];
-
-                const intermediateInputs = document.querySelectorAll(".intermediate-stop-input");
-                for (let input of intermediateInputs) {
-                    const address = input.value.trim();
-                    if (address) {
-                        const coords = await geocodeAddress(address);
-                        if (coords) realWaypoints.push(coords);
-                    }
-                }
-
-                const dropCoords = await geocodeAddress(targetDest);
-                if (dropCoords) {
-                    realWaypoints.push(dropCoords);
-                } else {
-                    alert("Could not locate the final destination on the map. Please verify the address spelling.");
-                    calculateFareBtn.innerHTML = `<i class="fa-solid fa-calculator"></i> Calculate Fare`;
-                    calculateFareBtn.disabled = false;
-                    return;
-                }
-
-                let calculatedDistance = await fetchOmsRoutePolyline(realWaypoints);
-                
-                if (!calculatedDistance) {
-                    calculatedDistance = 12.4 + (intermediateInputs.length * 4.8);
-                }
-
-                const waitHours = parseInt(document.getElementById("pricing-wait-select").value) || 0;
-                const stayDays = parseInt(document.getElementById("pricing-stay-select").value) || 0;
-
-                const baseFare = 150 + (calculatedDistance * 14); 
-                const waitFareValue = waitHours * 100;       
-                const stayFareValue = stayDays * 1000;      
-                baseCalculatedFare = baseFare + waitFareValue + stayFareValue;
-
-                document.getElementById("rendered-distance").textContent = calculatedDistance.toFixed(2) + " km";
-                document.getElementById("base-fare-val").textContent = "₹" + baseFare.toFixed(2);
-                document.getElementById("wait-fare-val").textContent = "₹" + waitFareValue.toFixed(2);
-                document.getElementById("stay-fare-val").textContent = "₹" + stayFareValue.toFixed(2);
-
-                updateTierPrices(baseCalculatedFare);
-                farePanel.style.display = "block";
-
-                calculateFareBtn.innerHTML = `<i class="fa-solid fa-calculator"></i> Calculate Fare`;
-                calculateFareBtn.disabled = false;
-            });
-        }
-
-        function updateTierPrices(base) {
-            document.querySelectorAll(".tier-card").forEach(card => {
-                const mult = parseFloat(card.getAttribute("data-multiplier"));
-                const totalTierPrice = base * mult;
-                card.querySelector(".tier-price").textContent = "₹" + totalTierPrice.toFixed(0);
-            });
-            
-            const selected = document.querySelector(".tier-card.active");
-            if (selected) {
-                const finalVal = base * parseFloat(selected.getAttribute("data-multiplier"));
-                document.getElementById("main-book-ride-execution-btn").innerHTML = `<i class="fa-solid fa-car-tunnel"></i> Book ${selected.querySelector("h4").textContent} (₹${finalVal.toFixed(0)})`;
-            }
-        }
-
-        document.querySelectorAll(".tier-card").forEach(card => {
-            card.addEventListener("click", function() {
-                document.querySelectorAll(".tier-card").forEach(c => c.classList.remove("active"));
-                this.classList.add("active");
-                if(baseCalculatedFare > 0) { updateTierPrices(baseCalculatedFare); }
-            });
-        });
-
-        const payTriggerBox = document.getElementById("payment-trigger-box");
-        const payDrawer = document.getElementById("payment-options-drawer");
-        
-        if(payTriggerBox && payDrawer) {
-            payTriggerBox.addEventListener("click", function() { payDrawer.classList.add("active"); });
-        }
-
-        document.querySelectorAll(".pay-option").forEach(option => {
-            option.addEventListener("click", function() {
-                document.querySelectorAll(".pay-option").forEach(o => o.classList.remove("selected"));
-                this.classList.add("selected");
-                document.getElementById("selected-payment-label").textContent = this.querySelector("strong").textContent;
-                payDrawer.classList.remove("active");
-            });
-        });
-
-        // ⚡ REGION 2: REAL PRODUCTION USER BOOKING & DASHBOARD REDIRECT
-        const mainBookRideBtn = document.getElementById("main-book-ride-execution-btn");
-        if (mainBookRideBtn) {
-            mainBookRideBtn.addEventListener("click", async function() {
-                const destination = document.getElementById("end-node").value.trim();
-                if (!destination) return alert("Please specify your final destination first.");
-
-                const selectedTierCard = document.querySelector(".tier-card.active");
-                const vehicleTier = selectedTierCard ? selectedTierCard.getAttribute("data-tier") : "auto";
-                const paymentMethod = document.querySelector(".pay-option.selected").getAttribute("data-method");
-                
-                const distanceText = document.getElementById("rendered-distance").textContent;
-                if (parseFloat(distanceText) === 0) return alert("Please calculate your route fare details before checking out.");
-
-                mainBookRideBtn.disabled = true;
-                mainBookRideBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Initializing Dispatch...`;
-
-                try {
-                    const response = await fetch('/api/trip/create', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            start_location: document.getElementById("start-node").value,
-                            end_location: destination,
-                            vehicle_tier: vehicleTier,
-                            payment_method: paymentMethod,
-                            total_fare: typeof baseCalculatedFare !== 'undefined' ? baseCalculatedFare : 0.0
-                        })
-                    });
-
-                    const tripResult = await response.json();
-
-                    if (tripResult.status === 'success') {
-                        if (tripResult.upi_intent_uri) {
-                            alert("🔗 Connecting to Bank Gateway... Directing securely to GPay/PhonePe.");
-                            window.location.href = tripResult.upi_intent_uri; 
-                            setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
-                        } else {
-                            alert(`🚖 Dispatch Initialized Successfully via CASH!\nTracking ID: ${tripResult.transaction_id}`);
-                            window.location.href = '/dashboard'; 
-                        }
-                    } else {
-                        alert(`Error: ${tripResult.message}`);
-                        mainBookRideBtn.disabled = false;
-                        mainBookRideBtn.innerHTML = `<i class="fa-solid fa-car-tunnel"></i> Book Ride Now`;
-                    }
-                } catch (err) {
-                    console.error("Booking transmission failure:", err);
-                    alert("Network timeout. Could not establish communication with dispatch towers.");
-                    mainBookRideBtn.disabled = false;
-                    mainBookRideBtn.innerHTML = `<i class="fa-solid fa-car-tunnel"></i> Book Ride Now`;
-                }
             });
         }
 
