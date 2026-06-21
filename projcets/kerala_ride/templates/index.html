@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}KeralaRide - Book a Ride{% endblock %}
+{% block title %}KeralaRide - Dashboard{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
@@ -61,33 +61,30 @@
     }
 
     /* ==========================================================================
-       🚨 FLOATING SOS & CHAT OVERLAYS
+       🚨 FLOATING NAVIGATION OVERLAYS
        ========================================================================== */
     .floating-sos-trigger {
         position: absolute;
-        top: 60px;
+        top: 20px;
         right: 20px;
-        width: 56px;
-        height: 56px;
+        width: 50px;
+        height: 50px;
         background-color: var(--accent-danger, #dc2626);
         color: #ffffff;
         border: none;
         border-radius: 50%;
-        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
         z-index: 999;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 22px;
+        font-size: 20px;
         cursor: pointer;
-        transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
-
-    .floating-sos-trigger:active { transform: scale(0.9); }
 
     .floating-chat-toggle {
         position: absolute;
-        top: 130px;
+        top: 85px;
         right: 20px;
         width: 50px;
         height: 50px;
@@ -104,9 +101,6 @@
         cursor: pointer;
     }
 
-    /* ==========================================================================
-       📶 PWA DISCONNECTED NETWORK BANNER
-       ========================================================================== */
     .offline-status-banner {
         position: fixed;
         top: 0;
@@ -120,11 +114,10 @@
         font-weight: 600;
         z-index: 999999;
         display: none;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
     }
 
     /* ==========================================================================
-       📦 FARE PREVIEW & STOPS INPUT SYSTEM
+       📦 LAYOUT MODULE FORMS
        ========================================================================== */
     .stop-input-row {
         display: flex;
@@ -138,13 +131,13 @@
         border: none;
         color: var(--accent-danger, #dc2626);
         cursor: pointer;
-        padding: 8px;
+        padding: 4px;
     }
 
     .fare-calculator-sheet {
         margin-top: 15px;
         background-color: #f8fafc;
-        border-radius: var(--radius-md, 12px);
+        border-radius: 16px;
         padding: 16px;
         border: 1px solid var(--border-color, #e2e8f0);
     }
@@ -195,9 +188,8 @@
     .chat-bubble {
         max-width: 75%;
         padding: 12px 16px;
-        border-radius: var(--radius-md, 12px);
+        border-radius: 12px;
         font-size: 15px;
-        line-height: 1.4;
     }
 
     .chat-bubble.sent {
@@ -212,16 +204,6 @@
         background-color: #e2e8f0;
         color: var(--text-main, #1f2937);
         border-bottom-left-radius: 4px;
-    }
-
-    .chat-input-area {
-        padding: 16px;
-        border-top: 1px solid var(--border-color, #e2e8f0);
-        background: #ffffff;
-        display: flex;
-        gap: 10px;
-        align-items: center;
-        padding-bottom: env(safe-area-inset-bottom, 16px);
     }
 
     @keyframes popIn {
@@ -241,12 +223,12 @@
 
 {% block content %}
 <div id="offline-network-banner" class="offline-status-banner">
-    <i class="fa-solid fa-cloud-bolt-sun"></i> Network Connection Disrupted. KeralaRide caching active routing loops offline...
+    <i class="fa-solid fa-cloud-bolt-sun"></i> Network Disrupted. Operating in offline caching mode.
 </div>
 
 <div id="splash-screen" class="splash-screen">
     <div class="splash-content">
-        <img src="/static/logo.png" alt="KeralaRide Logo" class="splash-logo" onerror="this.style.display='none'">
+        <img src="/static/logo.png" alt="KeralaRide" class="splash-logo" onerror="this.style.display='none'">
         <div class="typewriter-container">
             <h1 class="typing-text">Kerala<span>Ride</span> Connect</h1>
         </div>
@@ -254,73 +236,81 @@
 </div>
 
 <div class="app-home-layout">
-    <button class="floating-sos-trigger" id="sos-btn" aria-label="Trigger SOS Emergency Alert">
-        <i class="fa-solid fa-shield-heart"></i>
-    </button>
+    <button class="floating-sos-trigger" id="sos-btn"><i class="fa-solid fa-shield-heart"></i></button>
+    <button class="floating-chat-toggle" id="chat-toggle-btn"><i class="fa-solid fa-comment-dots"></i></button>
 
-    <button class="floating-chat-toggle" id="chat-toggle-btn" aria-label="Open Chat Panel">
-        <i class="fa-solid fa-comment-dots"></i>
-    </button>
+    <div id="home-live-map" style="position: absolute; top: 0; left: 0; width: 100%; height: 40%; z-index: 1;"></div>
 
-    <div id="home-live-map" style="position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 1;"></div>
-
-    <div class="booking-bottom-sheet" style="height: 50%; overflow-y: auto;">
+    <div class="booking-bottom-sheet" style="height: 60%; overflow-y: auto;">
         <div class="sheet-drag-handle"></div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h2 class="greeting" style="margin:0; font-size:20px;">Where are we going?</h2>
-            <button class="btn btn-outline btn-sm" onclick="document.getElementById('more-menu-sheet').classList.add('active')" style="min-height:32px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2 class="greeting" style="margin:0; font-size:20px; font-weight:800;">Book Your Journey</h2>
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('more-menu-sheet').classList.add('active')" style="min-height:36px; padding: 0 12px; border-radius: 8px;">
                 <i class="fa-solid fa-user-shield"></i> Contacts
             </button>
         </div>
 
-        <div class="search-routing-container" style="margin-bottom: 16px;">
+        <div class="search-routing-container">
             <div class="stop-input-row">
-                <i class="fa-solid fa-circle-dot" style="color: var(--accent-blue);"></i>
-                <input type="text" id="start-node" class="form-control" placeholder="Starting position (GPS Lock active)" style="min-height:40px; font-size:14px;" readonly>
+                <i class="fa-solid fa-circle-dot" style="color: var(--accent-blue); width: 16px; text-align:center;"></i>
+                <input type="text" id="start-node" class="form-control" placeholder="Locating current GPS coordinates..." readonly>
             </div>
             
             <div id="dynamic-stops-wrapper"></div>
 
             <div class="stop-input-row">
-                <i class="fa-solid fa-location-pin" style="color: var(--accent-danger);"></i>
-                <input type="text" id="end-node" class="form-control" placeholder="Enter target destination" style="min-height:40px; font-size:14px;">
+                <i class="fa-solid fa-location-pin" style="color: var(--accent-danger); width: 16px; text-align:center;"></i>
+                <input type="text" id="end-node" class="form-control" placeholder="Where is the destination?">
             </div>
 
-            <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn btn-outline btn-sm" id="add-stop-node-btn" style="flex:1; min-height:36px; font-size:12px;">
-                    <i class="fa-solid fa-plus-circle"></i> Add Multi-Stop
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+                <div>
+                    <label class="form-label" style="font-size:12px; margin-bottom:4px;">Wait Time (Hours)</label>
+                    <select id="pricing-wait-select" class="form-control" style="min-height:44px; padding: 4px 10px;">
+                        <option value="0">No Stopover Wait</option>
+                        <option value="1">1 Hour Stop</option>
+                        <option value="2">2 Hours Stop</option>
+                        <option value="4">4 Hours Stop</option>
+                        <option value="8">Full Day Wait (8h)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label" style="font-size:12px; margin-bottom:4px;">Overnight Stay</label>
+                    <select id="pricing-stay-select" class="form-control" style="min-height:44px; padding: 4px 10px;">
+                        <option value="0">Same Day Return</option>
+                        <option value="1">1 Night Halt</option>
+                        <option value="2">2 Nights Halt</option>
+                        <option value="3">3 Nights Halt</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:12px; margin-top:16px;">
+                <button class="btn btn-outline" id="add-stop-node-btn" style="flex:1; min-height:48px; border-radius:12px; font-size:14px;">
+                    <i class="fa-solid fa-plus-circle"></i> Add Stop
                 </button>
-                <button class="btn btn-primary btn-sm" id="calculate-fare-btn" style="flex:1; min-height:36px; font-size:12px;">
-                    <i class="fa-solid fa-calculator"></i> Estimate Upfront Price
+                <button class="btn btn-primary" id="calculate-fare-btn" style="flex:1; min-height:48px; border-radius:12px; font-size:14px;">
+                    <i class="fa-solid fa-calculator"></i> Calculate Fare
                 </button>
             </div>
         </div>
 
         <div id="fare-summary-panel" class="fare-calculator-sheet" style="display:none;">
-            <div class="fare-breakdown-row" style="font-weight:700; color:var(--primary-color); border-bottom:1px dashed #cbd5e1; padding-bottom:4px; margin-bottom:8px;">
-                <span>Estimated Distance:</span>
+            <div class="fare-breakdown-row" style="font-weight:700; color:var(--primary-color); border-bottom:1px dashed #cbd5e1; padding-bottom:6px; margin-bottom:10px;">
+                <span>Route Distance:</span>
                 <span id="rendered-distance">0.00 km</span>
             </div>
-            <div class="fare-breakdown-row">
-                <span>Base Transit fare:</span>
-                <span id="base-fare-val">₹0.00</span>
-            </div>
-            <div class="fare-breakdown-row">
-                <span>Accumulated Stop Wait Time Charges (<span id="wait-hrs-display">0</span> hrs):</span>
-                <span id="wait-fare-val">₹0.00</span>
-            </div>
-            <div class="fare-breakdown-row">
-                <span>Overnight Stay Halt Allowances (<span id="overnight-days-display">0</span> nights):</span>
-                <span id="stay-fare-val">₹0.00</span>
-            </div>
-            <div class="fare-breakdown-row" style="font-weight:800; color:#000; font-size:16px; border-top:1px solid #e2e8f0; padding-top:6px; margin-top:6px;">
+            <div class="fare-breakdown-row"><span>Base Rate:</span><span id="base-fare-val">₹0.00</span></div>
+            <div class="fare-breakdown-row"><span>Waiting Fee:</span><span id="wait-fare-val">₹0.00</span></div>
+            <div class="fare-breakdown-row"><span>Night Stay Allowance:</span><span id="stay-fare-val">₹0.00</span></div>
+            <div class="fare-breakdown-row" style="font-weight:800; color:#000; font-size:16px; border-top:1px solid #e2e8f0; padding-top:8px; margin-top:8px;">
                 <span>Total Upfront Estimate:</span>
                 <span id="total-fare-val">₹0.00</span>
             </div>
         </div>
 
-        <div class="service-bubbles" style="margin-top:15px;">
+        <div class="service-bubbles" style="margin-top:20px; border-top:1px solid #e2e8f0; padding-top:16px;">
             <div class="service-bubble"><img src="https://img.icons8.com/color/96/000000/auto-rickshaw.png" alt="Auto"><span>Auto</span></div>
             <div class="service-bubble"><img src="https://img.icons8.com/color/96/000000/car.png" alt="Taxi"><span>Taxi</span></div>
             <div class="service-bubble"><img src="https://img.icons8.com/color/96/000000/truck.png" alt="Goods"><span>Goods</span></div>
@@ -332,16 +322,16 @@
     <div class="chat-drawer-header">
         <div style="display:flex; flex-direction:column;">
             <h3 style="margin:0; font-size:16px;">Live Messenger</h3>
-            <span style="font-size:12px; color:var(--accent-success, #16a34a);"><i class="fa-solid fa-circle" style="font-size:8px;"></i> Live Secure Sync</span>
+            <span style="font-size:12px; color:var(--accent-success, #16a34a);"><i class="fa-solid fa-circle" style="font-size:8px;"></i> Encrypted Sync</span>
         </div>
-        <button onclick="document.getElementById('chat-drawer').classList.remove('active')" style="background:#f1f5f9; border:none; width:32px; height:32px; border-radius:50%; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="document.getElementById('chat-drawer').classList.remove('active')" style="background:#f1f5f9; border:none; width:32px; height:32px; border-radius:50%;"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="chat-messages-container" id="chat-msg-box">
-        <div class="chat-bubble received">Welcome to KeralaRide Connect Support. How can we assist you with your route configuration?</div>
+        <div class="chat-bubble received">Welcome to Support channels. Coordinate directions or parameters here safely.</div>
     </div>
     <div class="chat-input-area">
-        <input type="text" class="form-control" id="chat-input-field" placeholder="Type a message secure..." style="flex:1; min-height:44px; margin:0;">
-        <button class="btn btn-primary" id="chat-send-btn" style="min-height:44px; padding:0 16px; margin:0;"><i class="fa-solid fa-paper-plane"></i></button>
+        <input type="text" class="form-control" id="chat-input-field" placeholder="Write message...">
+        <button class="btn btn-primary" id="chat-send-btn"><i class="fa-solid fa-paper-plane"></i></button>
     </div>
 </div>
 {% endblock %}
@@ -350,50 +340,32 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
 <script>
-    // 🚀 Splash Screen Logic
-    window.addEventListener('load', function() {
-        setTimeout(function() {
-            const splash = document.getElementById('splash-screen');
-            if(splash) {
-                splash.style.opacity = '0';
-                splash.style.visibility = 'hidden';
-            }
-        }, 2600);
-    });
-
-    // 📶 PROGRESSIVE PWA OFFLINE TRACKING ENGINE LISTENER HOOKS
     window.addEventListener('online', updateNetworkConnectionStatus);
     window.addEventListener('offline', updateNetworkConnectionStatus);
 
     function updateNetworkConnectionStatus() {
         const offlineBanner = document.getElementById("offline-network-banner");
-        if(navigator.onLine) {
-            offlineBanner.style.display = "none";
-        } else {
-            offlineBanner.style.display = "block";
-        }
+        offlineBanner.style.display = navigator.onLine ? "none" : "block";
     }
 
     var currentLatitude = 9.9816;
     var currentLongitude = 76.2999;
 
-    // 🗺️ Map Initialization Setup
     document.addEventListener("DOMContentLoaded", function() {
         updateNetworkConnectionStatus(); 
 
-        // ⚡ Lag-Free Accelerated Configuration Options 
         var map = L.map('home-live-map', {
             zoomControl: false,
-            preferCanvas: true,        // Renders visual items as vectors instead of heavy individual DOM layers
+            preferCanvas: true,
             bounceAtZoomLimits: false,
-            inertia: false,            // Prevents slow frame rate panning degradation loops
+            inertia: false,
             wheelDebounceTime: 150
         }).setView([currentLatitude, currentLongitude], 14);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
-            updateWhenIdle: true,      // post-processes loading after tracking pans stabilize 
-            keepBuffer: 2              // Pre-caches border assets outside view boundaries
+            updateWhenIdle: true,
+            keepBuffer: 2
         }).addTo(map);
 
         var userDotIcon = L.divIcon({
@@ -416,63 +388,45 @@
             });
         }
 
-        // ==========================================================================
-        // 🛠️ MULTI-STOP DOM CONFIGURATION AND DYNAMIC INJECTION TRACKERS
-        // ==========================================================================
         const addStopBtn = document.getElementById("add-stop-node-btn");
         const stopsWrapper = document.getElementById("dynamic-stops-wrapper");
 
         if(addStopBtn && stopsWrapper) {
             addStopBtn.addEventListener("click", function() {
                 const stopCount = stopsWrapper.children.length + 1;
-                if(stopCount > 4) {
-                    alert("Maximum intermediate path stop allocations capped at 4.");
-                    return;
-                }
+                if(stopCount > 4) return alert("Stop limits capped at 4.");
                 
                 const stopRow = document.createElement("div");
                 stopRow.className = "stop-input-row animate-stop";
                 stopRow.innerHTML = `
-                    <i class="fa-solid fa-diamond" style="color: var(--accent-amber); font-size:12px;"></i>
-                    <input type="text" class="form-control intermediate-stop-input" placeholder="Stop ${stopCount} Destination" style="min-height:40px; font-size:14px;">
+                    <i class="fa-solid fa-diamond" style="color: var(--accent-amber); font-size:10px; width:16px; text-align:center;"></i>
+                    <input type="text" class="form-control intermediate-stop-input" placeholder="Stop ${stopCount} address" style="min-height:48px;">
                     <button class="remove-stop-btn" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash-can"></i></button>
                 `;
                 stopsWrapper.appendChild(stopRow);
             });
         }
 
-        // ==========================================================================
-        // 🧮 SMART FARE CALCULATOR METRICS PARSER
-        // ==========================================================================
         const calculateFareBtn = document.getElementById("calculate-fare-btn");
         const farePanel = document.getElementById("fare-summary-panel");
 
         if(calculateFareBtn && farePanel) {
             calculateFareBtn.addEventListener("click", function() {
                 const targetDest = document.getElementById("end-node").value.trim();
-                if(!targetDest) {
-                    alert("Please specify a target destination row to compute rates.");
-                    return;
-                }
+                if(!targetDest) return alert("Please clarify target destination.");
 
-                const baseDistanceKm = 12.4 + (stopsWrapper.children.length * 5.2);
-                
-                let waitHours = parseInt(prompt("Enter total planned intermediate stop wait time duration (Hours):", "0")) || 0;
-                let stayDays = parseInt(prompt("Enter total driver overnight outstation stays needed (Nights):", "0")) || 0;
+                const baseDistanceKm = 12.4 + (stopsWrapper.children.length * 4.8);
+                const waitHours = parseInt(document.getElementById("pricing-wait-select").value) || 0;
+                const stayDays = parseInt(document.getElementById("pricing-stay-select").value) || 0;
 
-                if(waitHours < 0) waitHours = 0;
-                if(stayDays < 0) stayDays = 0;
-
-                const baseFare = 150 + (baseDistanceKm * 15); 
+                const baseFare = 150 + (baseDistanceKm * 14); 
                 const waitFareValue = waitHours * 100;       
                 const stayFareValue = stayDays * 1000;      
                 const totalCost = baseFare + waitFareValue + stayFareValue;
 
                 document.getElementById("rendered-distance").textContent = baseDistanceKm.toFixed(2) + " km";
                 document.getElementById("base-fare-val").textContent = "₹" + baseFare.toFixed(2);
-                document.getElementById("wait-hrs-display").textContent = waitHours;
                 document.getElementById("wait-fare-val").textContent = "₹" + waitFareValue.toFixed(2);
-                document.getElementById("overnight-days-display").textContent = stayDays;
                 document.getElementById("stay-fare-val").textContent = "₹" + stayFareValue.toFixed(2);
                 document.getElementById("total-fare-val").textContent = "₹" + totalCost.toFixed(2);
 
@@ -480,22 +434,14 @@
             });
         }
 
-        // ==========================================================================
-        // 🚨 SOS & MESSENGER CORE SYSTEM ROUTERS
-        // ==========================================================================
         const globalSocket = (typeof socket !== 'undefined') ? socket : (window.socket ? window.socket : null);
         const sosButton = document.getElementById("sos-btn");
         
         if(sosButton) {
             sosButton.addEventListener("click", function() {
-                const confirmation = confirm("CRITICAL ACCELERATION ALERT:\nDo you need to broadcast an SOS signal with your tracking parameters?");
-                if(confirmation && globalSocket) {
-                    globalSocket.emit("trigger_sos", {
-                        lat: currentLatitude,
-                        lng: currentLongitude,
-                        timestamp: new Date().toISOString()
-                    });
-                    alert("Emergency loop execution active. Signals dispatched successfully.");
+                if(confirm("Confirm emergency SOS dispatch operations?") && globalSocket) {
+                    globalSocket.emit("trigger_sos", { lat: currentLatitude, lng: currentLongitude, timestamp: new Date().toISOString() });
+                    alert("SOS signals channeled to hub controllers.");
                 }
             });
         }
@@ -523,10 +469,7 @@
             chatMsgBox.appendChild(outgoingBubble);
             
             if(globalSocket) {
-                globalSocket.emit("send_message", {
-                    text: rawMessageText,
-                    timestamp: new Date().toISOString()
-                });
+                globalSocket.emit("send_message", { text: rawMessageText, timestamp: new Date().toISOString() });
             }
 
             chatInputField.value = "";
