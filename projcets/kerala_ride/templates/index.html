@@ -3,6 +3,8 @@
 {% block title %}KeralaRide - Book a Ride{% endblock %}
 
 {% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
 <style>
     /* ==========================================================================
        🚀 SPLASH SCREEN ANIMATION
@@ -35,7 +37,6 @@
         opacity: 0;
     }
 
-    /* The Typewriter Container */
     .typewriter-container {
         display: inline-block;
     }
@@ -48,9 +49,8 @@
         white-space: nowrap; 
         margin: 0 auto; 
         letter-spacing: 1px;
-        border-right: 3px solid var(--accent-amber, #d97706); /* Blinking Cursor */
+        border-right: 3px solid var(--accent-amber, #d97706); 
         width: 0;
-        /* Animation: typing takes 1.2s, blinking cursor runs infinitely */
         animation: 
             typing 1.2s steps(40, end) 0.5s forwards,
             blink-caret 0.75s step-end infinite;
@@ -88,12 +88,7 @@
 </div>
 
 <div class="app-home-layout">
-    <div class="home-map-bg">
-        <div class="map-center-marker">
-            <div class="pulse-ring"></div>
-            <i class="fa-solid fa-location-dot"></i>
-        </div>
-    </div>
+    <div id="home-live-map" style="position: absolute; top: 0; left: 0; width: 100%; height: 60%; z-index: 1;"></div>
 
     <div class="booking-bottom-sheet">
         <div class="sheet-drag-handle"></div>
@@ -154,10 +149,11 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
 <script>
-    // 🚀 Splash Screen Logic: Wait for typing animation to finish, then fade out
+    // 🚀 Splash Screen Logic
     window.addEventListener('load', function() {
-        // Hide splash screen after 2.6 seconds (gives time for typing animation to complete)
         setTimeout(function() {
             const splash = document.getElementById('splash-screen');
             if(splash) {
@@ -165,6 +161,44 @@
                 splash.style.visibility = 'hidden';
             }
         }, 2600);
+    });
+
+    // 🗺️ Real Dynamic Map Generation
+    document.addEventListener("DOMContentLoaded", function() {
+        // Default coordinates center around Kochi
+        var defaultLat = 9.9816;
+        var defaultLng = 76.2999;
+
+        // Initialize Map view layer
+        var map = L.map('home-live-map', {
+            zoomControl: false 
+        }).setView([defaultLat, defaultLng], 14);
+
+        // Fetch clean street layouts via OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Custom Blue Marker Dot for location match
+        var userDotIcon = L.divIcon({
+            className: 'custom-user-dot',
+            html: '<div style="position:relative;"><div class="pulse-ring"></div><div style="width:16px; height:16px; background:#0284c7; border:3px solid white; border-radius:50%; box-shadow:0 2px 5px rgba(0,0,0,0.3);"></div></div>',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+        });
+
+        var userMarker = L.marker([defaultLat, defaultLng], {icon: userDotIcon}).addTo(map);
+
+        // 📱 Attempt to lock onto device live coordinates dynamically
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                var pos = [position.coords.latitude, position.coords.longitude];
+                map.setView(pos, 15);
+                userMarker.setLatLng(pos);
+            }, function() {
+                console.log("GPS access denied or timed out. Keeping default coordinates.");
+            });
+        }
     });
 </script>
 {% endblock %}
