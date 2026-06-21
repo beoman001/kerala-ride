@@ -169,7 +169,7 @@
             button.addEventListener("click", function() {
                 const alertId = this.dataset.id;
                 
-                // 🛡️ FETCH DYNAMIC SAFETY TOKEN FROM METATAG LAYER
+                // FETCH DYNAMIC SAFETY TOKEN FROM METATAG LAYER
                 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
                 
                 button.disabled = true;
@@ -179,7 +179,7 @@
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "X-CSRFToken": csrfToken // <-- Passing token to Flask security validation
+                        "X-CSRFToken": csrfToken
                     }
                 })
                 .then(res => res.json())
@@ -203,20 +203,22 @@
         // 2. District Performance Analytics Chart
         const ctx = document.getElementById('districtChart').getContext('2d');
 
-        // Parse python dict to JS object
+        // Parse python dict to JS object loop
         const districtData = {
-            {% for dist, count in district_counts.items() %}
-                "{{ dist }}": {{ count }},
-            {% endfor %}
+            {% if district_counts %}
+                {% for dist, count in district_counts.items() %}
+                    "{{ dist }}": {{ count }},
+                {% endfor %}
+            {% endif %}
         };
 
         const labels = Object.keys(districtData);
         const dataValues = Object.values(districtData);
 
-        // Handle empty dataset mockup fallback
+        // Handle empty dataset mockup fallback configuration rules safely
         if (labels.length === 0) {
-            labels.push("Ernakulam", "Trivandrum", "Kozhikode");
-            dataValues.push(5, 2, 1);
+            labels.push("Ernakulam", "Thiruvananthapuram", "Kozhikode");
+            dataValues.push(0, 0, 0);
         }
 
         new Chart(ctx, {
@@ -227,7 +229,7 @@
                     label: 'Verified Partner Drivers',
                     data: dataValues,
                     backgroundColor: 'rgba(6, 78, 59, 0.75)',
-                    borderColor: 'var(--primary-color)',
+                    borderColor: 'rgba(6, 78, 59, 1)',
                     borderWidth: 1.5,
                     borderRadius: 4
                 }]
