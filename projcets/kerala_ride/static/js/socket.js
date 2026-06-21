@@ -44,24 +44,39 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     // ==========================================================================
-    // ⚡ REGION 2: COMPATIBLE TRADITIONAL FORM PASS-THROUGH ROUTING
+    // ⚡ REGION 2: MULTI-STOP COMPATIBLE TRADITIONAL FORM PASS-THROUGH ROUTING
     // ==========================================================================
     const formBookBtn = document.getElementById("bookBtn");
     if (formBookBtn) {
-        // Intercept click solely to check presence of coordinate criteria before standard form dispatch
+        // Intercept click to check presence of basic coordinates and active stopovers
         formBookBtn.addEventListener("click", function(e) {
             const pickup = document.getElementById("pickup").value.trim();
             const destination = document.getElementById("destination").value.trim();
             const p_lat = document.getElementById("pickup_lat").value;
             const d_lat = document.getElementById("dest_lat").value;
 
+            // ⚡ HARDENED: Conditionally check stopover requirements if field is visible
+            const stopoverCol = document.getElementById("stopoverContainerCol");
+            const isStopoverActive = stopoverCol && !stopoverCol.classList.contains("strictly-hidden");
+            
+            if (isStopoverActive) {
+                const stopover = document.getElementById("stopover").value.trim();
+                const s_lat = document.getElementById("stopover_lat").value;
+                
+                if (!stopover || !s_lat) {
+                    e.preventDefault();
+                    alert("Please specify your stopover point layout parameters completely or clear the stop field before booking!");
+                    return false;
+                }
+            }
+
             if (!pickup || !destination || !p_lat || !d_lat) {
                 e.preventDefault(); // Halt submission if mapping targets are empty
-                alert("Please make sure you specify locations and map parameters completely before booking!");
+                alert("Please make sure you specify base locations and map parameters completely before booking!");
                 return false;
             }
 
-            console.log("🚀 Form validation criteria cleared. Dispatching standard form context lines directly to Python.");
+            console.log("🚀 Form validation criteria cleared. Dispatching multi-stop form context lines directly to Python.");
         });
     }
 
@@ -131,6 +146,12 @@ document.addEventListener("DOMContentLoaded", function() {
                 `;
             }
 
+            // ⚡ EXTRA: Display stopover metadata if provided in the dynamic stream
+            let stopoverMeta = '';
+            if (data.stopover) {
+                stopoverMeta = `<p style="font-size: 13px; color: #b45309;"><strong>Stopover:</strong> ${data.stopover}</p>`;
+            }
+
             popup.innerHTML = `
                 <div class="card-title" style="border-bottom: 2px solid var(--primary-color); color: var(--primary-color);">
                     <span>⚡ New Booking Request</span>
@@ -139,6 +160,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 <div style="margin-bottom: 15px;">
                     <p style="font-size: 15px; margin-bottom: 4px;"><strong>Customer:</strong> ${data.customer_name}</p>
                     <p style="font-size: 13px; color: #4b5563;"><strong>Pickup:</strong> ${data.pickup}</p>
+                    ${stopoverMeta}
                     <p style="font-size: 13px; color: #4b5563;"><strong>Drop:</strong> ${data.destination}</p>
                     ${goodsMeta}
                     <h3 style="color: var(--accent-amber); margin-top: 10px;">Est. Fare: ₹${data.fare}</h3>
