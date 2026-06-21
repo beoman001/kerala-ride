@@ -107,18 +107,18 @@ def create_trip_dispatch():
             # Output: upi://pay?pa=keralaride@axisbank&pn=...
             upi_deep_link = f"upi://pay?{urllib.parse.urlencode(upi_params)}"
 
-        print(f"🚖 [LIVE DISPATCH] User {current_user.id} requested a real {vehicle_tier.upper()}. ID: {transaction_ref}")
+        print(f"🚖 [LIVE DISPATCH] User {current_user.id} requested a draft {vehicle_tier.upper()}. ID: {transaction_ref}")
         if upi_deep_link:
             print(f"🔗 [UPI DEEP LINK GENERATED] -> {upi_deep_link}")
 
         # ⚡ Production Database Integration Layer:
-        # trip = Trip(user_id=current_user.id, txn_ref=transaction_ref, fare=total_fare, status='searching', method=payment_method)
+        # trip = Trip(user_id=current_user.id, txn_ref=transaction_ref, fare=total_fare, status='draft', method=payment_method)
         # db.session.add(trip)
         # db.session.commit()
         
         return jsonify({
             'status': 'success',
-            'message': 'Ride request securely initialized. Searching fleet mappings...',
+            'message': 'Ride draft created. Redirecting to confirmation...',
             'transaction_id': transaction_ref,
             'vehicle_tier': vehicle_tier,
             'fare': total_fare,
@@ -132,6 +132,28 @@ def create_trip_dispatch():
             'status': 'error',
             'message': 'Database processing exception occurred during ride generation handles.'
         }), 500
+
+# ==========================================================================
+# 📝 NEW: PASSENGER BOOKING CONFIRMATION PAGE
+# ==========================================================================
+@main_bp.route('/booking')
+@login_required
+def booking_confirmation():
+    """
+    Catches the frontend redirect and displays the final booking 
+    confirmation page for the specific transaction ID.
+    """
+    txn_id = request.args.get('txn_id')
+    
+    if not txn_id:
+        flash("Invalid tracking reference. Please initiate a new ride request.", "danger")
+        return redirect(url_for('main.index'))
+        
+    # In a full production environment, you would query the db for the draft trip here:
+    # trip_details = Trip.query.filter_by(txn_ref=txn_id, user_id=current_user.id).first_or_404()
+    
+    return render_template('booking.html', txn_id=txn_id)
+
 
 # ==========================================================================
 # 🚨 UPDATE EMERGENCY TRUSTED CONTACT ENDPOINT
