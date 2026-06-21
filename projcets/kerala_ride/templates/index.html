@@ -153,7 +153,7 @@
         color: var(--text-muted, #4b5563);
     }
 
-    /* 🚖 PREMIUM HORIZONTAL TIER SELECTOR CAROUSEL */
+    /* 🚖 HORIZONTAL TIER SELECTOR CAROUSEL */
     .tier-carousel-container {
         display: flex;
         gap: 12px;
@@ -189,7 +189,7 @@
     .tier-card span { font-size: 11px; color: #6b7280; margin-top: 2px; }
     .tier-price { font-size: 13px; font-weight: 800; color: var(--primary-color); margin-top: 4px; }
 
-    /* 💳 UPI/METHOD SELECTOR INTERFACE */
+    /* 💳 PAYMENT METHOD ROW */
     .payment-method-row {
         display: flex;
         align-items: center;
@@ -549,7 +549,7 @@
             simulatedDrivers.forEach(d => {
                 d.lat += (Math.random() - 0.5) * 0.001;
                 d.lng += (Math.random() - 0.5) * 0.001;
-                d.marker.setLatLng([dLat = d.lat, dLng = d.lng]);
+                d.marker.setLatLng([d.lat, d.lng]);
             });
         }, 3000);
 
@@ -614,6 +614,9 @@
             });
         }
 
+        // ==========================================================================
+        // ⚡ REGION 3: REAL-WORLD GEOCODING ADDRESS ROUTE ENGINE
+        // ==========================================================================
         const calculateFareBtn = document.getElementById("calculate-fare-btn");
         const farePanel = document.getElementById("fare-summary-panel");
 
@@ -622,17 +625,50 @@
                 const targetDest = document.getElementById("end-node").value.trim();
                 if(!targetDest) return alert("Please specify your final target drop location.");
 
-                // Mock geographic route array mapping coordinates for line plot mapping
-                let pathPoints = [[currentLatitude, currentLongitude]];
-                const totalIntermediates = document.querySelectorAll(".intermediate-stop-input").length;
-                for(let i=0; i < totalIntermediates; i++){
-                    pathPoints.push([currentLatitude + (i+1)*0.012, currentLongitude + (i+1)*0.012]);
-                }
-                pathPoints.push([currentLatitude + (totalIntermediates+1)*0.025, currentLongitude + (totalIntermediates+1)*0.025]);
+                calculateFareBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mapping Route...`;
+                calculateFareBtn.disabled = true;
 
-                let calculatedDistance = await fetchOmsRoutePolyline(pathPoints);
+                async function geocodeAddress(addressText) {
+                    try {
+                        const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addressText + ", Kerala")}`;
+                        const response = await fetch(searchUrl, {
+                            headers: { 'User-Agent': 'KeralaRideConnectPWA' }
+                        });
+                        const searchData = await response.json();
+                        if(searchData && searchData.length > 0) {
+                            return [parseFloat(searchData[0].lat), parseFloat(searchData[0].lon)];
+                        }
+                    } catch (err) {
+                        console.error("Geocoding failed for: " + addressText, err);
+                    }
+                    return null;
+                }
+
+                let realWaypoints = [[currentLatitude, currentLongitude]];
+
+                const intermediateInputs = document.querySelectorAll(".intermediate-stop-input");
+                for (let input of intermediateInputs) {
+                    const address = input.value.trim();
+                    if (address) {
+                        const coords = await geocodeAddress(address);
+                        if (coords) realWaypoints.push(coords);
+                    }
+                }
+
+                const dropCoords = await geocodeAddress(targetDest);
+                if (dropCoords) {
+                    realWaypoints.push(dropCoords);
+                } else {
+                    alert("Could not locate the final destination on the map. Please verify the address spelling.");
+                    calculateFareBtn.innerHTML = `<i class="fa-solid fa-calculator"></i> Calculate Fare`;
+                    calculateFareBtn.disabled = false;
+                    return;
+                }
+
+                let calculatedDistance = await fetchOmsRoutePolyline(realWaypoints);
+                
                 if (!calculatedDistance) {
-                    calculatedDistance = 12.4 + (stopsWrapper.children.length * 4.8);
+                    calculatedDistance = 12.4 + (intermediateInputs.length * 4.8);
                 }
 
                 const waitHours = parseInt(document.getElementById("pricing-wait-select").value) || 0;
@@ -650,11 +686,14 @@
 
                 updateTierPrices(baseCalculatedFare);
                 farePanel.style.display = "block";
+
+                calculateFareBtn.innerHTML = `<i class="fa-solid fa-calculator"></i> Calculate Fare`;
+                calculateFareBtn.disabled = false;
             });
         }
 
         // ==========================================================================
-        // ⚡ REGION 3: DYNAMIC VEHICLE CAROUSEL MULTIPLIER CONTROLLER
+        // ⚡ REGION 4: VEHICLE CAROUSEL MULTIPLIER CONTROLLER
         // ==========================================================================
         function updateTierPrices(base) {
             document.querySelectorAll(".tier-card").forEach(card => {
@@ -679,7 +718,7 @@
         });
 
         // ==========================================================================
-        // ⚡ REGION 4: INTERACTIVE UPI GATEWAY SIMULATOR
+        // ⚡ REGION 5: INTERACTIVE UPI GATEWAY SIMULATOR
         // ==========================================================================
         const payTriggerBox = document.getElementById("payment-trigger-box");
         const payDrawer = document.getElementById("payment-options-drawer");
@@ -704,11 +743,11 @@
                 const activeVehicleName = document.querySelector(".tier-card.active h4").textContent;
 
                 if (paymentMethod === 'upi') {
-                    const upiString = prompt("💳 Enter UPI Reference ID or Number to authorize transacting limits safely:", "9876543210@upi");
-                    if (!upiString) return alert("Authorization interrupted. Booking request halted.");
+                    const upiString = prompt("💳 Enter UPI Reference ID or Phone Number to authorize trip tracking parameters securely:", "9876543210@upi");
+                    if (!upiString) return alert("Authorization cancelled. Booking request halted.");
                 }
 
-                alert(`🚖 Booking Dispatched via ${paymentMethod.toUpperCase()}!\nProcessing dispatch allocations for your nearby ${activeVehicleName} route maps...`);
+                alert(`🚖 Booking Request Dispatched via ${paymentMethod.toUpperCase()}!\nProcessing fleet lookup metrics for your nearby ${activeVehicleName} routing paths...`);
             });
         }
 
