@@ -1,11 +1,99 @@
-// KeralaRide Connect SocketIO Event Router
+// KeralaRide Connect SocketIO Event Router & Production Dispatch Engine
 document.addEventListener("DOMContentLoaded", function() {
     // Establish connection to socket server
     const socket = io();
+    let realDriverMarkers = {}; // Cache to track live driver layer markers by ID
 
     socket.on('connect', () => {
         console.log('Connected to KeralaRide Connect WebSocket server.');
+        // Register passenger room state inside backend pool tower
+        socket.emit('join_passenger_pool', {});
     });
+
+    // ==========================================================================
+    // ⚡ REGION 1: LIVE BROADCAST FLEET MAPPING (REPLACES MOCK MATH LOOPS)
+    // ==========================================================================
+    socket.on('fleet_coordinates_broadcast', (data) => {
+        // Intercepts active driver coordinates emitted from the WebSocket server tower
+        const { driver_id, lat, lng, vehicle_tier } = data;
+        
+        // Ensure our global Leaflet map instance is fully operational on the page
+        if (typeof map !== 'undefined' && map) {
+            
+            // If vehicle tier matches our currently selected filter or if map is idle
+            const driverIconHtml = `
+                <div style="background:#064e3b; width:28px; height:28px; border-radius:50%; border:2px solid white; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.3); transition: transform 0.4s linear;">
+                    <i class="fa-solid fa-car" style="color:white; font-size:12px;"></i>
+                </div>`;
+            
+            const cabIcon = L.divIcon({ className: 'cab-marker-node', html: driverIconHtml, iconSize: [28, 28] });
+
+            if (realDriverMarkers[driver_id]) {
+                // Update position smoothly over web-canvas without layout thrashing
+                realDriverMarkers[driver_id].setLatLng([lat, lng]);
+            } else {
+                // Instantly generate new marker layer nodes for freshly connected vehicles
+                realDriverMarkers[driver_id] = L.marker([lat, lng], { icon: cabIcon }).addTo(map);
+            }
+        }
+    });
+
+    // ==========================================================================
+    // ⚡ REGION 2: REAL PRODUCTION USER BOOKING & NATIVE UPI ROUTER
+    // ==========================================================================
+    const mainBookRideBtn = document.getElementById("main-book-ride-execution-btn");
+    if (mainBookRideBtn) {
+        mainBookRideBtn.addEventListener("click", async function() {
+            const destination = document.getElementById("end-node").value.trim();
+            if (!destination) return alert("Please specify your final destination first.");
+
+            const selectedTierCard = document.querySelector(".tier-card.active");
+            const vehicleTier = selectedTierCard ? selectedTierCard.getAttribute("data-tier") : "auto";
+            const paymentMethod = document.querySelector(".pay-option.selected").getAttribute("data-method");
+            
+            // Pull real distance numbers from our text metrics block
+            const distanceText = document.getElementById("rendered-distance").textContent;
+            if (parseFloat(distanceText) === 0) return alert("Please calculate your route fare details before checking out.");
+
+            mainBookRideBtn.disabled = true;
+            mainBookRideBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Initializing Dispatch Securely...`;
+
+            try {
+                // Fire network payload directly to our new live backend controller endpoint
+                const response = await fetch('/api/trip/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        start_location: document.getElementById("start-node").value,
+                        end_location: destination,
+                        vehicle_tier: vehicleTier,
+                        payment_method: paymentMethod,
+                        total_fare: typeof baseCalculatedFare !== 'undefined' ? baseCalculatedFare : 0.0
+                    })
+                });
+
+                const tripResult = await response.json();
+
+                if (tripResult.status === 'success') {
+                    // 💳 IF USER SELECTED UPI -> INTERCEPT AND AUTO-TRIGGER MOBILE WALLET
+                    if (tripResult.upi_intent_uri) {
+                        alert("🔗 Connecting to Bank Gateway... Directing securely to GPay/PhonePe.");
+                        window.location.href = tripResult.upi_intent_uri; // Triggers system intent loop cleanly
+                    } else {
+                        alert(`🚖 Dispatch Initialized Successfully via CASH!\nTracking ID: ${tripResult.transaction_id}`);
+                    }
+                } else {
+                    alert(`Error: ${tripResult.message}`);
+                }
+            } catch (err) {
+                console.error("Booking transmission sequence failure:", err);
+                alert("Network timeout. Could not establish communication with dispatch towers.");
+            } finally {
+                mainBookRideBtn.disabled = false;
+                if (selectedTierCard) updateTierPrices(baseCalculatedFare);
+            }
+        });
+    }
 
     // 1. Customer Trip Updates Listener
     socket.on('booking_status', (data) => {
@@ -52,7 +140,6 @@ document.addEventListener("DOMContentLoaded", function() {
             console.log("New booking dispatch received:", data);
             
             // Create a sliding booking alert box at the bottom right
-            // Remove existing alert if present
             const oldAlert = document.getElementById('booking-dispatch-popup');
             if (oldAlert) oldAlert.remove();
 
@@ -106,7 +193,6 @@ document.addEventListener("DOMContentLoaded", function() {
         if (adminDashboard) {
             console.log("Emergency SOS Alert received:", data);
             
-            // Create a top flashing emergency alert banner
             const sosBanner = document.createElement('div');
             sosBanner.className = 'alert alert-danger';
             sosBanner.style.position = 'fixed';
@@ -133,7 +219,6 @@ document.addEventListener("DOMContentLoaded", function() {
             
             document.body.appendChild(sosBanner);
             
-            // Handle alert dismiss
             sosBanner.querySelector('.alert-close').addEventListener('click', function() {
                 sosBanner.remove();
             });
