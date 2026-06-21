@@ -30,7 +30,7 @@
       "label": "Driver Dashboard and Live Map Tracking"
     },
     {
-      "src": "/static/screenshot-detop.png",
+      "src": "/static/screenshot-desktop.png",
       "sizes": "1920x1080",
       "type": "image/png",
       "form_factor": "wide",
