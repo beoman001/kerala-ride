@@ -1,15 +1,15 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import current_user  # 🛡️ Track if user is logged in
 from kerala_ride import db
-from kerala_ride.models import PromoOffer, SupportTicket  # ✉️ Import our new SupportTicket model
-from datetime import datetime
+from kerala_ride.models import PromoOffer, SupportTicket  # ✉️ Import SupportTicket model
+from datetime import datetime, timezone
 
 main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
 def index():
-    # Fetch active promo offers to show on landing page
-    offers = PromoOffer.query.filter(PromoOffer.expiry_date > datetime.utcnow()).limit(3).all()
+    # Fetch active promo offers to show on landing page (Updated to timezone-aware UTC)
+    offers = PromoOffer.query.filter(PromoOffer.expiry_date > datetime.now(timezone.utc)).limit(3).all()
     return render_template('index.html', offers=offers)
 
 @main_bp.route('/about')
@@ -57,5 +57,41 @@ def contact():
 
 @main_bp.route('/offers')
 def offers():
-    offers = PromoOffer.query.filter(PromoOffer.expiry_date > datetime.utcnow()).all()
+    offers = PromoOffer.query.filter(PromoOffer.expiry_date > datetime.now(timezone.utc)).all()
     return render_template('offers.html', offers=offers)
+
+
+# ==========================================================================
+# 🔌 SOCKET.IO BACKEND ROUTER HOOKS (For reference inside your socket handler)
+# ==========================================================================
+"""
+Add these handler structures where your Flask-SocketIO engine is initialized 
+(typically in your __init__.py or a dedicated sockets.py file):
+
+from flask_socketio import emit
+from kerala_ride import socketio
+
+@socketio.on('trigger_sos')
+def handle_sos_alert(payload):
+    user_identity = current_user.name if current_user.is_authenticated else "Anonymous User"
+    print(f"🚨 CRITICAL SOS ALERT RECEIVED From: {user_identity}")
+    print(f"📍 Coordinates mapped: Lat {payload.get('lat')}, Lng {payload.get('lng')}")
+    
+    # Broadcast out instantly to all connected admin operations consoles
+    emit('admin_receive_sos', {
+        'user': user_identity,
+        'lat': payload.get('lat'),
+        'lng': payload.get('lng'),
+        'time': payload.get('timestamp')
+    }, broadcast=True)
+
+@socketio.on('send_message')
+def handle_incoming_chat(payload):
+    print(f"💬 Live chat sync payload routing: {payload.get('text')}")
+    
+    # Broadcast to the paired recipient path channel
+    emit('receive_message', {
+        'text': payload.get('text'),
+        'timestamp': payload.get('timestamp')
+    }, broadcast=True, include_self=False)
+"""
