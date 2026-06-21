@@ -299,6 +299,43 @@
         border-bottom-left-radius: 4px;
     }
 
+    .chat-input-area {
+        padding: 16px;
+        border-top: 1px solid var(--border-color, #e2e8f0);
+        background: #ffffff;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        padding-bottom: env(safe-area-inset-bottom, 20px); 
+    }
+
+    /* ⚡ THE FIX FOR INVISIBLE CHAT TEXT */
+    .direct-messenger-input {
+        flex: 1;
+        height: 54px !important;
+        font-size: 16px !important;
+        padding: 0 18px !important;
+        line-height: 54px !important;
+        border-radius: 14px !important;
+        border: 1px solid var(--border-color, #e2e8f0);
+        background-color: #f8fafc;
+        color: #1f2937 !important;
+        box-sizing: border-box;
+        margin: 0;
+    }
+
+    .direct-messenger-btn {
+        min-height: 54px !important; 
+        width: 54px !important;
+        padding: 0;
+        margin: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 14px !important;
+        font-size: 18px;
+    }
+
     @keyframes popIn {
         0% { transform: scale(0.5); opacity: 0; }
         100% { transform: scale(1); opacity: 1; }
@@ -497,7 +534,7 @@
     window.addEventListener('online', updateNetworkConnectionStatus);
     window.addEventListener('offline', updateNetworkConnectionStatus);
 
-    // 🚀 Splash Screen Animation Dismissal Trigger
+    // 🚀 Splash Screen Timeout fixed from 2200 to 2800 so typewriter finishes smoothly
     window.addEventListener('load', function() {
         setTimeout(function() {
             const splash = document.getElementById('splash-screen');
@@ -505,7 +542,7 @@
                 splash.style.opacity = '0';
                 splash.style.visibility = 'hidden';
             }
-        }, 2200);
+        }, 2800); 
     });
 
     function updateNetworkConnectionStatus() {
@@ -533,10 +570,13 @@
             wheelDebounceTime: 150
         }).setView([currentLatitude, currentLongitude], 14);
 
+        // ⚡ TURBO-CHARGED MAP CONFIGURATION (Fast Pre-loading)
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
-            updateWhenIdle: true,       
-            keepBuffer: 1,             
+            maxZoom: 19,
+            updateWhenIdle: false,
+            keepBuffer: 8,
+            updateWhenZooming: false,
             unloadInvisibleTiles: true 
         }).addTo(map);
 
@@ -567,9 +607,6 @@
 
         var userMarker = L.marker([currentLatitude, currentLongitude], {icon: userDotIcon}).addTo(map);
 
-        // ==========================================================================
-        // ⚡ REGION 1: REAL-TIME DRIVER SIMULATION PLOT ENGINE
-        // ==========================================================================
         function seedNearbyDrivers(lat, lng) {
             simulatedDrivers.forEach(d => map.removeLayer(d.marker));
             simulatedDrivers = [];
@@ -609,9 +646,6 @@
             });
         }
 
-        // ==========================================================================
-        // ⚡ REGION 2: OPENSTREETMAP OSRM ROAD-LINE PLOT CALCULATOR
-        // ==========================================================================
         async function fetchOmsRoutePolyline(waypoints) {
             if (activeRouteLine) { map.removeLayer(activeRouteLine); }
             
@@ -658,9 +692,6 @@
             });
         }
 
-        // ==========================================================================
-        // ⚡ REGION 3: REAL-WORLD GEOCODING ADDRESS ROUTE ENGINE
-        // ==========================================================================
         const calculateFareBtn = document.getElementById("calculate-fare-btn");
         const farePanel = document.getElementById("fare-summary-panel");
 
@@ -736,9 +767,6 @@
             });
         }
 
-        // ==========================================================================
-        // ⚡ REGION 4: VEHICLE CAROUSEL MULTIPLIER CONTROLLER
-        // ==========================================================================
         function updateTierPrices(base) {
             document.querySelectorAll(".tier-card").forEach(card => {
                 const mult = parseFloat(card.getAttribute("data-multiplier"));
@@ -761,9 +789,6 @@
             });
         });
 
-        // ==========================================================================
-        // ⚡ REGION 5: INTERACTIVE UPI GATEWAY SIMULATOR
-        // ==========================================================================
         const payTriggerBox = document.getElementById("payment-trigger-box");
         const payDrawer = document.getElementById("payment-options-drawer");
         
@@ -780,18 +805,58 @@
             });
         });
 
-        const bookRideActionBtn = document.getElementById("main-book-ride-execution-btn");
-        if(bookRideActionBtn) {
-            bookRideActionBtn.addEventListener("click", function() {
+        // ⚡ REGION 2: REAL PRODUCTION USER BOOKING & DASHBOARD REDIRECT
+        const mainBookRideBtn = document.getElementById("main-book-ride-execution-btn");
+        if (mainBookRideBtn) {
+            mainBookRideBtn.addEventListener("click", async function() {
+                const destination = document.getElementById("end-node").value.trim();
+                if (!destination) return alert("Please specify your final destination first.");
+
+                const selectedTierCard = document.querySelector(".tier-card.active");
+                const vehicleTier = selectedTierCard ? selectedTierCard.getAttribute("data-tier") : "auto";
                 const paymentMethod = document.querySelector(".pay-option.selected").getAttribute("data-method");
-                const activeVehicleName = document.querySelector(".tier-card.active h4").textContent;
+                
+                const distanceText = document.getElementById("rendered-distance").textContent;
+                if (parseFloat(distanceText) === 0) return alert("Please calculate your route fare details before checking out.");
 
-                if (paymentMethod === 'upi') {
-                    const upiString = prompt("💳 Enter UPI Reference ID or Phone Number to authorize trip tracking parameters securely:", "9876543210@upi");
-                    if (!upiString) return alert("Authorization cancelled. Booking request halted.");
+                mainBookRideBtn.disabled = true;
+                mainBookRideBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Initializing Dispatch...`;
+
+                try {
+                    const response = await fetch('/api/trip/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            start_location: document.getElementById("start-node").value,
+                            end_location: destination,
+                            vehicle_tier: vehicleTier,
+                            payment_method: paymentMethod,
+                            total_fare: typeof baseCalculatedFare !== 'undefined' ? baseCalculatedFare : 0.0
+                        })
+                    });
+
+                    const tripResult = await response.json();
+
+                    if (tripResult.status === 'success') {
+                        if (tripResult.upi_intent_uri) {
+                            alert("🔗 Connecting to Bank Gateway... Directing securely to GPay/PhonePe.");
+                            window.location.href = tripResult.upi_intent_uri; 
+                            setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
+                        } else {
+                            alert(`🚖 Dispatch Initialized Successfully via CASH!\nTracking ID: ${tripResult.transaction_id}`);
+                            window.location.href = '/dashboard'; 
+                        }
+                    } else {
+                        alert(`Error: ${tripResult.message}`);
+                        mainBookRideBtn.disabled = false;
+                        mainBookRideBtn.innerHTML = `<i class="fa-solid fa-car-tunnel"></i> Book Ride Now`;
+                    }
+                } catch (err) {
+                    console.error("Booking transmission failure:", err);
+                    alert("Network timeout. Could not establish communication with dispatch towers.");
+                    mainBookRideBtn.disabled = false;
+                    mainBookRideBtn.innerHTML = `<i class="fa-solid fa-car-tunnel"></i> Book Ride Now`;
                 }
-
-                alert(`🚖 Booking Request Dispatched via ${paymentMethod.toUpperCase()}!\nProcessing fleet lookup metrics for your nearby ${activeVehicleName} routing paths...`);
             });
         }
 
