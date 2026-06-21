@@ -9,9 +9,24 @@ main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
 def index():
-    # Fetch active promo offers to show on landing page (Updated to timezone-aware UTC)
+    # Fetch active promo offers to show on landing page
     offers = PromoOffer.query.filter(PromoOffer.expiry_date > datetime.now(timezone.utc)).limit(3).all()
+    # If index.html is your map, this loads it directly for visitors.
     return render_template('index.html', offers=offers)
+
+# ==========================================================================
+# 🗺️ UNIFIED MAP BOOKING INTERFACE
+# ==========================================================================
+@main_bp.route('/book-ride')
+@login_required
+def book_ride():
+    """
+    🎯 Both the Homepage 'Book' button and Dashboard 'Book' button 
+    should point here: href="{{ url_for('main.book_ride') }}"
+    """
+    # Renders the exact same interactive map view for logged-in users
+    return render_template('index.html')
+
 
 @main_bp.route('/about')
 def about():
@@ -134,7 +149,7 @@ def create_trip_dispatch():
         }), 500
 
 # ==========================================================================
-# 📝 NEW: PASSENGER BOOKING CONFIRMATION PAGE
+# 📝 PASSENGER BOOKING CONFIRMATION PAGE
 # ==========================================================================
 @main_bp.route('/booking')
 @login_required
