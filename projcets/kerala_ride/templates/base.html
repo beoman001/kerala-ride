@@ -168,6 +168,7 @@
                 font-size: 12px;
                 gap: 4px;
                 flex: 1;
+                cursor: pointer;
             }
 
             .mobile-bottom-nav .nav-item i {
@@ -280,10 +281,12 @@
                     <span>Admin</span>
                 </a>
             {% endif %}
-            <a href="{{ url_for('main.contact') }}" class="nav-item">
-                <i class="fa-solid fa-headset"></i>
-                <span>Help</span>
-            </a>
+            
+            <div class="nav-item" onclick="document.getElementById('more-menu-sheet').classList.toggle('active')">
+                <i class="fa-solid fa-bars"></i>
+                <span>More</span>
+            </div>
+            
             <a href="{{ url_for('auth.logout') }}" class="nav-item text-danger">
                 <i class="fa-solid fa-right-from-bracket"></i>
                 <span>Logout</span>
@@ -297,8 +300,23 @@
                 <i class="fa-solid fa-user-plus"></i>
                 <span>Register</span>
             </a>
+            <div class="nav-item" onclick="document.getElementById('more-menu-sheet').classList.toggle('active')">
+                <i class="fa-solid fa-bars"></i>
+                <span>More</span>
+            </div>
         {% endif %}
     </nav>
+
+    <div id="more-menu-sheet" class="more-menu-sheet">
+        <div class="menu-header">
+            <h3>KeralaRide Connect</h3>
+            <button onclick="document.getElementById('more-menu-sheet').classList.remove('active')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <a href="{{ url_for('main.about') }}" class="menu-item"><i class="fa-solid fa-circle-info"></i> About Us</a>
+        <a href="{{ url_for('main.contact') }}" class="menu-item"><i class="fa-solid fa-shield-halved"></i> Support & Safety</a>
+        <a href="{{ url_for('main.offers') }}" class="menu-item"><i class="fa-solid fa-tag"></i> Promos & Discounts</a>
+        <a href="{{ url_for('auth.driver_register') }}" class="menu-item"><i class="fa-solid fa-steering-wheel"></i> Drive with Us</a>
+    </div>
 
     <footer>
         <div class="container">
