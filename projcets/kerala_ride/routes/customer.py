@@ -257,7 +257,7 @@ def book():
 
 
 # ==========================================
-# 2. DYNAMIC FARE ESTIMATOR (MULTI-STOP & CUSTOM STEP RULES LOGIC)
+# 2. DYNAMIC FARE ESTIMATOR (MULTI-STOP & HOURLY MULTIPLIER RULES)
 # ==========================================
 @customer_bp.route('/estimate-fare', methods=['POST'])
 @login_required
@@ -271,16 +271,10 @@ def estimate_fare():
     category = data.get('category')
     promo_code = data.get('promo_code', '').strip().upper()
     
-    # ⚡ ACCURATE STEP RULES MATRIX FOR REGISTERED SCHEDULES
+    # ⚡ ROLLING TARGET: Round up into absolute hourly increments (60 mins = ₹100 flat multiplier)
     waiting_minutes = int(data.get('waiting_minutes', 0))
-    if waiting_minutes >= 1440:
-        waiting_charge_total = 1000.0  # 1 Day Stay Over Rule
-    elif waiting_minutes >= 480:
-        waiting_charge_total = 800.0   # 8 Hours Stop Rule
-    elif waiting_minutes >= 60:
-        waiting_charge_total = 100.0   # 1 Hour Stop Rule
-    else:
-        waiting_charge_total = 0.0     # Direct Transit
+    waiting_hours = math.ceil(waiting_minutes / 60.0)
+    waiting_charge_total = float(waiting_hours * 100.0)
 
     if not pickup or not destination or not category:
         return jsonify({"success": False, "error": "Missing pickup, dropoff, or vehicle parameters."}), 400
@@ -397,7 +391,7 @@ def estimate_fare():
             else:
                 cat_return_charge = cat_forward_fare
 
-        # Integrate customized absolute tiered waiting charges securely onto totals
+        # Append dynamic flat rolling hour-by-hour wait variables cleanly onto absolute totals
         cat_final_fare = cat_forward_fare + cat_return_charge + waiting_charge_total
 
         cat_discount = 0.0
