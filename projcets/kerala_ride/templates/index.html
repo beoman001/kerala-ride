@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}KeralaRide - Dashboard{% endblock %}
+{% block title %}KeralaRide - Book a Ride{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
@@ -67,27 +67,27 @@
         position: absolute;
         top: 20px;
         right: 20px;
-        width: 50px;
-        height: 50px;
+        width: 52px;
+        height: 52px;
         background-color: var(--accent-danger, #dc2626);
         color: #ffffff;
         border: none;
         border-radius: 50%;
-        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        box-shadow: 0 4px 14px rgba(220, 38, 38, 0.3);
         z-index: 999;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 20px;
+        font-size: 22px;
         cursor: pointer;
     }
 
     .floating-chat-toggle {
         position: absolute;
-        top: 85px;
+        top: 88px;
         right: 20px;
-        width: 50px;
-        height: 50px;
+        width: 52px;
+        height: 52px;
         background-color: var(--primary-color, #064e3b);
         color: #ffffff;
         border: none;
@@ -97,7 +97,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 20px;
+        font-size: 22px;
         cursor: pointer;
     }
 
@@ -109,21 +109,21 @@
         background-color: #7f1d1d;
         color: #fef2f2;
         text-align: center;
-        padding: 8px 12px;
-        font-size: 13px;
+        padding: 10px 14px;
+        font-size: 14px;
         font-weight: 600;
         z-index: 999999;
         display: none;
     }
 
     /* ==========================================================================
-       📦 LAYOUT MODULE FORMS
+       📦 FARE PREVIEW & STOPS INPUT SYSTEM
        ========================================================================== */
     .stop-input-row {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 10px;
+        gap: 12px;
+        margin-bottom: 12px;
     }
 
     .remove-stop-btn {
@@ -131,22 +131,23 @@
         border: none;
         color: var(--accent-danger, #dc2626);
         cursor: pointer;
-        padding: 4px;
+        padding: 8px;
+        font-size: 18px;
     }
 
     .fare-calculator-sheet {
-        margin-top: 15px;
+        margin-top: 18px;
         background-color: #f8fafc;
-        border-radius: 16px;
-        padding: 16px;
+        border-radius: 20px;
+        padding: 20px;
         border: 1px solid var(--border-color, #e2e8f0);
     }
 
     .fare-breakdown-row {
         display: flex;
         justify-content: space-between;
-        font-size: 14px;
-        margin-bottom: 6px;
+        font-size: 15px;
+        margin-bottom: 8px;
         color: var(--text-muted, #4b5563);
     }
 
@@ -155,9 +156,9 @@
         bottom: -100%;
         left: 0;
         width: 100%;
-        height: 75vh;
+        height: 80vh;
         background: var(--bg-card, #ffffff);
-        border-radius: 24px 24px 0 0;
+        border-radius: 30px 30px 0 0;
         box-shadow: 0 -8px 32px rgba(0,0,0,0.15);
         z-index: 100001;
         transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -168,7 +169,7 @@
     .chat-drawer-container.active { bottom: 0; }
 
     .chat-drawer-header {
-        padding: 16px 20px;
+        padding: 20px;
         border-bottom: 1px solid var(--border-color, #e2e8f0);
         display: flex;
         justify-content: space-between;
@@ -181,15 +182,16 @@
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 14px;
         background-color: #f8fafc;
     }
 
     .chat-bubble {
-        max-width: 75%;
-        padding: 12px 16px;
-        border-radius: 12px;
-        font-size: 15px;
+        max-width: 80%;
+        padding: 14px 18px;
+        border-radius: 16px;
+        font-size: 16px;
+        line-height: 1.5;
     }
 
     .chat-bubble.sent {
@@ -210,20 +212,12 @@
         0% { transform: scale(0.5); opacity: 0; }
         100% { transform: scale(1); opacity: 1; }
     }
-    @keyframes typing {
-        from { width: 0 }
-        to { width: 100% }
-    }
-    @keyframes blink-caret {
-        from, to { border-color: transparent }
-        50% { border-color: var(--accent-amber, #d97706); }
-    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div id="offline-network-banner" class="offline-status-banner">
-    <i class="fa-solid fa-cloud-bolt-sun"></i> Network Disrupted. Operating in offline caching mode.
+    <i class="fa-solid fa-signal-roles"></i> Network Disrupted. Operating safely via offline tracking caches.
 </div>
 
 <div id="splash-screen" class="splash-screen">
@@ -236,81 +230,85 @@
 </div>
 
 <div class="app-home-layout">
-    <button class="floating-sos-trigger" id="sos-btn"><i class="fa-solid fa-shield-heart"></i></button>
-    <button class="floating-chat-toggle" id="chat-toggle-btn"><i class="fa-solid fa-comment-dots"></i></button>
+    <button class="floating-sos-trigger" id="sos-btn" aria-label="SOS Alert"><i class="fa-solid fa-shield-heart"></i></button>
+    <button class="floating-chat-toggle" id="chat-toggle-btn" aria-label="Open Chat"><i class="fa-solid fa-comment-dots"></i></button>
 
-    <div id="home-live-map" style="position: absolute; top: 0; left: 0; width: 100%; height: 40%; z-index: 1;"></div>
+    <div id="home-live-map" style="position: absolute; top: 0; left: 0; width: 100%; height: 45%; z-index: 1;"></div>
 
-    <div class="booking-bottom-sheet" style="height: 60%; overflow-y: auto;">
+    <div class="booking-bottom-sheet" style="height: 55%; overflow-y: auto;">
         <div class="sheet-drag-handle"></div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h2 class="greeting" style="margin:0; font-size:20px; font-weight:800;">Book Your Journey</h2>
-            <button class="btn btn-outline btn-sm" onclick="document.getElementById('more-menu-sheet').classList.add('active')" style="min-height:36px; padding: 0 12px; border-radius: 8px;">
-                <i class="fa-solid fa-user-shield"></i> Contacts
+            <h2 class="greeting" style="margin:0; font-size:22px; font-weight:800;">Where to?</h2>
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('more-menu-sheet').classList.add('active')" style="min-height:38px; border-radius: 10px; font-weight:600;">
+                <i class="fa-solid fa-user-shield"></i> Security Contacts
             </button>
         </div>
 
         <div class="search-routing-container">
             <div class="stop-input-row">
-                <i class="fa-solid fa-circle-dot" style="color: var(--accent-blue); width: 16px; text-align:center;"></i>
-                <input type="text" id="start-node" class="form-control" placeholder="Locating current GPS coordinates..." readonly>
+                <i class="fa-solid fa-circle-dot" style="color: var(--accent-blue); width: 20px; font-size:16px; text-align:center;"></i>
+                <input type="text" id="start-node" class="form-control generic-large-input" placeholder="Verifying current tracking coordinates..." readonly>
             </div>
             
             <div id="dynamic-stops-wrapper"></div>
 
             <div class="stop-input-row">
-                <i class="fa-solid fa-location-pin" style="color: var(--accent-danger); width: 16px; text-align:center;"></i>
-                <input type="text" id="end-node" class="form-control" placeholder="Where is the destination?">
+                <i class="fa-solid fa-location-pin" style="color: var(--accent-danger); width: 20px; font-size:18px; text-align:center;"></i>
+                <input type="text" id="end-node" class="form-control generic-large-input" placeholder="Enter drop destination...">
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px;">
                 <div>
-                    <label class="form-label" style="font-size:12px; margin-bottom:4px;">Wait Time (Hours)</label>
-                    <select id="pricing-wait-select" class="form-control" style="min-height:44px; padding: 4px 10px;">
+                    <label class="form-label" style="font-size:13px; margin-bottom:6px; font-weight:600;">Stopover Wait Time</label>
+                    <select id="pricing-wait-select" class="form-control generic-large-input" style="padding: 0 14px;">
                         <option value="0">No Stopover Wait</option>
-                        <option value="1">1 Hour Stop</option>
-                        <option value="2">2 Hours Stop</option>
-                        <option value="4">4 Hours Stop</option>
-                        <option value="8">Full Day Wait (8h)</option>
+                        <option value="1">1 Hour Stop (+₹100)</option>
+                        <option value="2">2 Hours Stop (+₹200)</option>
+                        <option value="4">4 Hours Stop (+₹400)</option>
+                        <option value="8">Full Day Wait (+₹800)</option>
                     </select>
                 </div>
                 <div>
-                    <label class="form-label" style="font-size:12px; margin-bottom:4px;">Overnight Stay</label>
-                    <select id="pricing-stay-select" class="form-control" style="min-height:44px; padding: 4px 10px;">
+                    <label class="form-label" style="font-size:13px; margin-bottom:6px; font-weight:600;">Overnight Halt</label>
+                    <select id="pricing-stay-select" class="form-control generic-large-input" style="padding: 0 14px;">
                         <option value="0">Same Day Return</option>
-                        <option value="1">1 Night Halt</option>
-                        <option value="2">2 Nights Halt</option>
-                        <option value="3">3 Nights Halt</option>
+                        <option value="1">1 Night Stay (+₹1000)</option>
+                        <option value="2">2 Nights Stay (+₹2000)</option>
                     </select>
                 </div>
             </div>
 
-            <div style="display:flex; gap:12px; margin-top:16px;">
-                <button class="btn btn-outline" id="add-stop-node-btn" style="flex:1; min-height:48px; border-radius:12px; font-size:14px;">
+            <div style="display:flex; gap:12px; margin-top:18px;">
+                <button class="btn btn-outline" id="add-stop-node-btn" style="flex:1; min-height:54px; border-radius:14px; font-size:15px; font-weight:700;">
                     <i class="fa-solid fa-plus-circle"></i> Add Stop
                 </button>
-                <button class="btn btn-primary" id="calculate-fare-btn" style="flex:1; min-height:48px; border-radius:12px; font-size:14px;">
+                <button class="btn btn-primary" id="calculate-fare-btn" style="flex:1; min-height:54px; border-radius:14px; font-size:15px; font-weight:700;">
                     <i class="fa-solid fa-calculator"></i> Calculate Fare
                 </button>
             </div>
         </div>
 
         <div id="fare-summary-panel" class="fare-calculator-sheet" style="display:none;">
-            <div class="fare-breakdown-row" style="font-weight:700; color:var(--primary-color); border-bottom:1px dashed #cbd5e1; padding-bottom:6px; margin-bottom:10px;">
-                <span>Route Distance:</span>
+            <div class="fare-breakdown-row" style="font-weight:700; color:var(--primary-color); border-bottom:1px dashed #cbd5e1; padding-bottom:8px; margin-bottom:12px; font-size:16px;">
+                <span>Total Calculated Route:</span>
                 <span id="rendered-distance">0.00 km</span>
             </div>
-            <div class="fare-breakdown-row"><span>Base Rate:</span><span id="base-fare-val">₹0.00</span></div>
-            <div class="fare-breakdown-row"><span>Waiting Fee:</span><span id="wait-fare-val">₹0.00</span></div>
-            <div class="fare-breakdown-row"><span>Night Stay Allowance:</span><span id="stay-fare-val">₹0.00</span></div>
-            <div class="fare-breakdown-row" style="font-weight:800; color:#000; font-size:16px; border-top:1px solid #e2e8f0; padding-top:8px; margin-top:8px;">
-                <span>Total Upfront Estimate:</span>
+            <div class="fare-breakdown-row"><span>Baseline Distance Cost:</span><span id="base-fare-val">₹0.00</span></div>
+            <div class="fare-breakdown-row"><span>Intermediate Waiting Charge:</span><span id="wait-fare-val">₹0.00</span></div>
+            <div class="fare-breakdown-row"><span>Driver Stay Allowance:</span><span id="stay-fare-val">₹0.00</span></div>
+            
+            <div class="fare-breakdown-row" style="font-weight:800; color:#000; font-size:18px; border-top:1px solid #e2e8f0; padding-top:10px; margin-top:10px;">
+                <span>Upfront Fare:</span>
                 <span id="total-fare-val">₹0.00</span>
             </div>
+
+            <button class="btn btn-accent" id="main-book-ride-execution-btn" style="width:100%; min-height:56px; margin-top:16px; border-radius:14px; font-size:16px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; box-shadow:0 4px 14px rgba(217, 119, 6, 0.3);">
+                <i class="fa-solid fa-car-tunnel"></i> Confirm & Book Ride Now
+            </button>
         </div>
 
-        <div class="service-bubbles" style="margin-top:20px; border-top:1px solid #e2e8f0; padding-top:16px;">
+        <div class="service-bubbles" style="margin-top:24px; border-top:1px solid #e2e8f0; padding-top:20px;">
             <div class="service-bubble"><img src="https://img.icons8.com/color/96/000000/auto-rickshaw.png" alt="Auto"><span>Auto</span></div>
             <div class="service-bubble"><img src="https://img.icons8.com/color/96/000000/car.png" alt="Taxi"><span>Taxi</span></div>
             <div class="service-bubble"><img src="https://img.icons8.com/color/96/000000/truck.png" alt="Goods"><span>Goods</span></div>
@@ -318,11 +316,32 @@
     </div>
 </div>
 
+<div class="more-menu-sheet" id="more-menu-sheet">
+    <div class="menu-header">
+        <h3 style="font-size:18px; font-weight:800; color:var(--primary-color);">Emergency Safety Contacts</h3>
+        <button onclick="document.getElementById('more-menu-sheet').classList.remove('active')" style="background:#f1f5f9; border:none; width:36px; height:32px; border-radius:50%;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    
+    <form action="{{ url_for('main.update_emergency_contact') }}" method="POST">
+        <div class="form-group">
+            <label class="form-label">Trusted Person Name</label>
+            <input type="text" name="contact_name" class="form-control generic-large-input" value="{{ current_user.emergency_contact_name or '' if current_user.is_authenticated else '' }}" placeholder="e.g., Parent / Spouse Contact Name" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Trusted Safety Phone Number</label>
+            <input type="tel" name="contact_phone" class="form-control generic-large-input" value="{{ current_user.emergency_contact_phone or '' if current_user.is_authenticated else '' }}" placeholder="e.g., +91 98765 43210" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%; min-height:54px; font-size:15px; font-weight:700; border-radius:12px;">
+            <i class="fa-solid fa-floppy-disk"></i> Secure Safety Contacts
+        </button>
+    </form>
+</div>
+
 <div class="chat-drawer-container" id="chat-drawer">
     <div class="chat-drawer-header">
         <div style="display:flex; flex-direction:column;">
             <h3 style="margin:0; font-size:16px;">Live Messenger</h3>
-            <span style="font-size:12px; color:var(--accent-success, #16a34a);"><i class="fa-solid fa-circle" style="font-size:8px;"></i> Encrypted Sync</span>
+            <span style="font-size:12px; color:var(--accent-success, #16a34a);"><i class="fa-solid fa-circle" style="font-size:8px;"></i> Secure Tunnel Active</span>
         </div>
         <button onclick="document.getElementById('chat-drawer').classList.remove('active')" style="background:#f1f5f9; border:none; width:32px; height:32px; border-radius:50%;"><i class="fa-solid fa-xmark"></i></button>
     </div>
@@ -330,8 +349,8 @@
         <div class="chat-bubble received">Welcome to Support channels. Coordinate directions or parameters here safely.</div>
     </div>
     <div class="chat-input-area">
-        <input type="text" class="form-control" id="chat-input-field" placeholder="Write message...">
-        <button class="btn btn-primary" id="chat-send-btn"><i class="fa-solid fa-paper-plane"></i></button>
+        <input type="text" class="form-control direct-messenger-input" id="chat-input-field" placeholder="Type message to driver...">
+        <button class="btn btn-primary direct-messenger-btn" id="chat-send-btn"><i class="fa-solid fa-paper-plane"></i></button>
     </div>
 </div>
 {% endblock %}
@@ -345,7 +364,7 @@
 
     function updateNetworkConnectionStatus() {
         const offlineBanner = document.getElementById("offline-network-banner");
-        offlineBanner.style.display = navigator.onLine ? "none" : "block";
+        if(offlineBanner) offlineBanner.style.display = navigator.onLine ? "none" : "block";
     }
 
     var currentLatitude = 9.9816;
@@ -399,8 +418,8 @@
                 const stopRow = document.createElement("div");
                 stopRow.className = "stop-input-row animate-stop";
                 stopRow.innerHTML = `
-                    <i class="fa-solid fa-diamond" style="color: var(--accent-amber); font-size:10px; width:16px; text-align:center;"></i>
-                    <input type="text" class="form-control intermediate-stop-input" placeholder="Stop ${stopCount} address" style="min-height:48px;">
+                    <i class="fa-solid fa-diamond" style="color: var(--accent-amber); font-size:11px; width:20px; text-align:center;"></i>
+                    <input type="text" class="form-control generic-large-input intermediate-stop-input" placeholder="Stop ${stopCount} destination location...">
                     <button class="remove-stop-btn" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash-can"></i></button>
                 `;
                 stopsWrapper.appendChild(stopRow);
@@ -413,7 +432,7 @@
         if(calculateFareBtn && farePanel) {
             calculateFareBtn.addEventListener("click", function() {
                 const targetDest = document.getElementById("end-node").value.trim();
-                if(!targetDest) return alert("Please clarify target destination.");
+                if(!targetDest) return alert("Please specify your final target drop location.");
 
                 const baseDistanceKm = 12.4 + (stopsWrapper.children.length * 4.8);
                 const waitHours = parseInt(document.getElementById("pricing-wait-select").value) || 0;
@@ -434,14 +453,22 @@
             });
         }
 
+        // Book Ride Execution logic pipeline attachment hook
+        const bookRideActionBtn = document.getElementById("main-book-ride-execution-btn");
+        if(bookRideActionBtn) {
+            bookRideActionBtn.addEventListener("click", function() {
+                alert("🚖 Booking Request Dispatched!\nSearching for the nearest active KeralaRide driver matches along your configured stop paths...");
+            });
+        }
+
         const globalSocket = (typeof socket !== 'undefined') ? socket : (window.socket ? window.socket : null);
         const sosButton = document.getElementById("sos-btn");
         
         if(sosButton) {
             sosButton.addEventListener("click", function() {
-                if(confirm("Confirm emergency SOS dispatch operations?") && globalSocket) {
+                if(confirm("Confirm emergency SOS broadcast request?") && globalSocket) {
                     globalSocket.emit("trigger_sos", { lat: currentLatitude, lng: currentLongitude, timestamp: new Date().toISOString() });
-                    alert("SOS signals channeled to hub controllers.");
+                    alert("SOS indicators dispatched to tracking dashboard towers.");
                 }
             });
         }
