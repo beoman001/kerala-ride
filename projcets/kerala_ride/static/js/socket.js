@@ -44,63 +44,30 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     // ==========================================================================
-    // ⚡ REGION 2: FORM-BASED ROUTING INTERCEPT & REDIRECT FLOW
+    // ⚡ REGION 2: COMPATIBLE TRADITIONAL FORM PASS-THROUGH ROUTING
     // ==========================================================================
     const formBookBtn = document.getElementById("bookBtn");
     if (formBookBtn) {
-        formBookBtn.addEventListener("click", async function(e) {
-            e.preventDefault(); // Stop standard form posts
-
+        // Intercept click solely to check presence of coordinate criteria before standard form dispatch
+        formBookBtn.addEventListener("click", function(e) {
+            const pickup = document.getElementById("pickup").value.trim();
             const destination = document.getElementById("destination").value.trim();
-            if (!destination) return alert("Please specify your final destination first.");
+            const p_lat = document.getElementById("pickup_lat").value;
+            const d_lat = document.getElementById("dest_lat").value;
 
-            const vehicleTier = document.getElementById("booking_type").value;
-            const paymentMethod = document.getElementById("payment_method").value;
-            const finalFare = document.getElementById("estimated_fare").value;
-
-            formBookBtn.disabled = true;
-            formBookBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Initializing Dispatch...`;
-
-            try {
-                // Fire network payload directly to our live backend controller endpoint to draft the trip
-                const response = await fetch('/api/trip/create', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        start_location: document.getElementById("pickup").value,
-                        end_location: destination,
-                        vehicle_tier: vehicleTier,
-                        payment_method: paymentMethod,
-                        total_fare: parseFloat(finalFare) || 0.0
-                    })
-                });
-
-                const tripResult = await response.json();
-
-                if (tripResult.status === 'success') {
-                    if (tripResult.upi_intent_uri && paymentMethod.toLowerCase() === 'upi') {
-                        // Open UPI app, then push back to dashboard
-                        window.location.href = tripResult.upi_intent_uri; 
-                        setTimeout(() => { window.location.href = '/customer/dashboard'; }, 1500);
-                    } else {
-                        // Alert user and push back to dashboard
-                        alert(`🚖 Ride Confirmed!\nTracking ID: ${tripResult.transaction_id}`);
-                        window.location.href = '/customer/dashboard'; 
-                    }
-                } else {
-                    alert(`Error: ${tripResult.message}`);
-                    formBookBtn.disabled = false;
-                    formBookBtn.innerHTML = `<i class="fa-solid fa-car-side me-2"></i> Confirm & Book Ride`;
-                }
-            } catch (err) {
-                console.error("Booking transmission sequence failure:", err);
-                alert("Network timeout. Could not establish communication with dispatch servers.");
-                formBookBtn.disabled = false;
-                formBookBtn.innerHTML = `<i class="fa-solid fa-car-side me-2"></i> Confirm & Book Ride`;
+            if (!pickup || !destination || !p_lat || !d_lat) {
+                e.preventDefault(); // Halt submission if mapping targets are empty
+                alert("Please make sure you specify locations and map parameters completely before booking!");
+                return false;
             }
+
+            console.log("🚀 Form validation criteria cleared. Dispatching standard form context lines directly to Python.");
         });
     }
 
+    // ==========================================================================
+    // ⚡ REGION 3: SIGNAL NOTIFICATION EVENT LISTENERS
+    // ==========================================================================
     // 1. Customer Trip Updates Listener
     socket.on('booking_status', (data) => {
         const activeTripCard = document.getElementById(`trip-card-${data.booking_id}`);
