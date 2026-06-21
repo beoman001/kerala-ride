@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     // ==========================================================================
-    // ⚡ REGION 2: REAL PRODUCTION USER BOOKING & BOOKING PAGE REDIRECT
+    // ⚡ REGION 2: REAL PRODUCTION USER BOOKING & DASHBOARD REDIRECT
     // ==========================================================================
     const mainBookRideBtn = document.getElementById("main-book-ride-execution-btn");
     if (mainBookRideBtn) {
@@ -75,9 +75,16 @@ document.addEventListener("DOMContentLoaded", function() {
                 const tripResult = await response.json();
 
                 if (tripResult.status === 'success') {
-                    // 🚀 REDIRECT TO PASSENGER BOOKING PAGE
-                    // Appends the transaction ID so your backend knows which draft booking to display for confirmation
-                    window.location.href = `/booking?txn_id=${tripResult.transaction_id}`; 
+                    // 🚀 REDIRECT STRAIGHT TO DASHBOARD AFTER BOOKING
+                    if (tripResult.upi_intent_uri) {
+                        // Open UPI app, then push back to dashboard
+                        window.location.href = tripResult.upi_intent_uri; 
+                        setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
+                    } else {
+                        // Alert user and push back to dashboard
+                        alert(`🚖 Ride Confirmed!\nTracking ID: ${tripResult.transaction_id}`);
+                        window.location.href = '/dashboard'; 
+                    }
                 } else {
                     alert(`Error: ${tripResult.message}`);
                     mainBookRideBtn.disabled = false;
