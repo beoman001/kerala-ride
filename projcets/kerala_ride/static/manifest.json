@@ -9,13 +9,13 @@
   "theme_color": "#064e3b",
   "icons": [
     {
-      "src": "/static/icons/icon-192.png",
+      "src": "/static/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/static/icons/icon-512.png",
+      "src": "/static/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -23,14 +23,14 @@
   ],
   "screenshots": [
     {
-      "src": "/static/screenshots/screenshot-mobile.png",
+      "src": "/static/screenshot-mobile.png",
       "sizes": "1080x1920",
       "type": "image/png",
       "form_factor": "narrow",
       "label": "Driver Dashboard and Live Map Tracking"
     },
     {
-      "src": "/static/screenshots/screenshot-detop.png",
+      "src": "/static/screenshot-detop.png",
       "sizes": "1920x1080",
       "type": "image/png",
       "form_factor": "wide",
@@ -43,7 +43,7 @@
       "short_name": "Book",
       "description": "Quickly book a passenger ride",
       "url": "/customer",
-      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/static/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
