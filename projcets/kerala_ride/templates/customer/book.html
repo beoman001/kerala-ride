@@ -24,9 +24,9 @@
         transition: all 0.2s ease-in-out;
         border-bottom: 3px solid transparent;
     }
-    .nav-tab-item.active {
-        color: #111827;
-        border-bottom: 3px solid #064e3b;
+    .nav-tabs-custom .nav-tab-item.active {
+        color: #111827 !important;
+        border-bottom: 3px solid #064e3b !important;
     }
     .nav-tab-item:hover:not(.active) {
         background-color: #f9fafb;
@@ -176,7 +176,7 @@
                                 </select>
                             </div>
                             <div id="goodsSelectWrapper" class="strictly-hidden">
-                                <select id="vehicle_category_goods" name="vehicle_category" class="form-select form-control" disabled required>
+                                <select id="vehicle_category_goods" name="vehicle_category" class="form-select form-control" disabled>
                                     <option value="" disabled selected>Select vehicle...</option>
                                     <option value="Goods Auto">Goods Auto (Light local transport)</option>
                                     <option value="Mini Pickup">Mini Pickup (Medium loads)</option>
@@ -313,7 +313,7 @@ function initMap() {
         updateLocationFromCoords(e.latlng.lat, e.latlng.lng, targetType);
     });
 
-    setTimeout(() => { map.invalidateSize(); }, 300);
+    setTimeout(() => { map.invalidateSize(); }, 400);
 }
 
 function extractDistrictFromAddress(addressString) {
@@ -339,7 +339,6 @@ function updateLocationFromCoords(lat, lng, targetType) {
         
         document.getElementById("pickup").value = coordinateFallback;
         
-        // 🎯 FIX: Immediately bind raw values to hidden inputs
         document.getElementById("pickup_lat").value = lat;
         document.getElementById("pickup_lng").value = lng;
         
@@ -367,7 +366,6 @@ function updateLocationFromCoords(lat, lng, targetType) {
         
         document.getElementById("destination").value = coordinateFallback;
 
-        // 🎯 FIX: Immediately bind raw values to hidden inputs
         document.getElementById("dest_lat").value = lat;
         document.getElementById("dest_lng").value = lng;
         
@@ -429,7 +427,6 @@ function setupAutocomplete(inputElement, suggestionsElement, targetType) {
                                     if (pickupMarker) { map.removeLayer(pickupMarker); }
                                     pickupMarker = L.marker([lonLat[1], lonLat[0]]).addTo(map).bindPopup("🛫 Pickup Spot").openPopup();
                                     
-                                    // Apply raw coordinates from search selection
                                     document.getElementById("pickup_lat").value = lonLat[1];
                                     document.getElementById("pickup_lng").value = lonLat[0];
                                     document.getElementById("target_dest").checked = true;
@@ -437,7 +434,6 @@ function setupAutocomplete(inputElement, suggestionsElement, targetType) {
                                     if (destMarker) { map.removeLayer(destMarker); }
                                     destMarker = L.marker([lonLat[1], lonLat[0]]).addTo(map).bindPopup("🛬 Destination Spot").openPopup();
                                     
-                                    // Apply raw coordinates from search selection
                                     document.getElementById("dest_lat").value = lonLat[1];
                                     document.getElementById("dest_lng").value = lonLat[0];
                                 }
@@ -472,13 +468,11 @@ document.addEventListener("DOMContentLoaded", function() {
     setupAutocomplete(pickupInput, pickupSuggestions, "pickup");
     setupAutocomplete(destInput, destSuggestions, "destination");
 
-    // 🎯 NEW: Toggle Logic for the Date Picker
     document.getElementById('ride_later').addEventListener('change', function() {
         const timeInput = document.getElementById('scheduled_time');
         timeInput.classList.remove('strictly-hidden');
         timeInput.required = true;
         
-        // Prevent booking for a time in the past
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         timeInput.min = now.toISOString().slice(0, 16);
@@ -512,6 +506,15 @@ document.addEventListener("DOMContentLoaded", function() {
     const calcPromo = document.getElementById("calcPromo");
     const calcFinalTotal = document.getElementById("calcFinalTotal");
 
+    // Check query string parameters to dynamically auto-trigger target context tab settings on load
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialType = urlParams.get('booking_type');
+    if (initialType === 'goods') {
+        renderTab("goods");
+    } else {
+        renderTab("passenger");
+    }
+
     function resetEstimation() {
         estimateWidget.classList.add("strictly-hidden");
         bookBtn.classList.add("strictly-hidden");
@@ -525,6 +528,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function renderTab(targetMode) {
         resetEstimation();
+        
+        // Dynamic Leaflet resizing rule injection layers
+        if (typeof map !== 'undefined' && map) {
+            setTimeout(() => { map.invalidateSize(); }, 150);
+        }
+
         if (targetMode === "goods") {
             bookingTypeInput.value = "goods";
             tabGoods.classList.add("active");
@@ -575,7 +584,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
         calcFareBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Calculating Fare...';
 
-        // 🎯 FIX: Transmit the raw numbers stored in the hidden fields explicitly to the backend
         fetch("/customer/estimate-fare", {
             method: "POST",
             headers: { 
@@ -654,7 +662,6 @@ document.addEventListener("DOMContentLoaded", function() {
         const p_lat = document.getElementById("pickup_lat").value;
         const d_lat = document.getElementById("dest_lat").value;
         
-        // 🎯 FIX: Hard check to ensure coordinates are recorded before form dispatch
         if (!pickup || !destination || !category || !p_lat || !d_lat) {
             e.preventDefault();
             alert("Please make sure you drop both pins on the map before booking!");
