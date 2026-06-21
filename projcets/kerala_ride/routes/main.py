@@ -11,11 +11,11 @@ main_bp = Blueprint('main', __name__)
 def index():
     # Fetch active promo offers to show on landing page
     offers = PromoOffer.query.filter(PromoOffer.expiry_date > datetime.now(timezone.utc)).limit(3).all()
-    # If index.html is your map, this loads it directly for visitors.
-    return render_template('index.html', offers=offers)
+    # ⚡ UPDATED: Changed from index.html to book.html to default to the old template layout
+    return render_template('book.html', offers=offers)
 
 # ==========================================================================
-# 🗺️ UNIFIED MAP BOOKING INTERFACE
+# 🗺️ DEDICATED PASSENGER RIDE FORM INTERFACE
 # ==========================================================================
 @main_bp.route('/book-ride')
 @login_required
@@ -24,8 +24,8 @@ def book_ride():
     🎯 Both the Homepage 'Book' button and Dashboard 'Book' button 
     should point here: href="{{ url_for('main.book_ride') }}"
     """
-    # Renders the exact same interactive map view for logged-in users
-    return render_template('index.html')
+    # ⚡ UPDATED: Pointing cleanly to your old form-based book.html view
+    return render_template('book.html')
 
 
 @main_bp.route('/about')
@@ -195,59 +195,3 @@ def update_emergency_contact():
         flash('An error occurred while updating your safety configuration.', 'danger')
         
     return redirect(url_for('main.index'))
-
-
-# ==========================================================================
-# 🔌 SOCKET.IO SYSTEM REAL-TIME DRIVER COORDINATE ENGINE
-# ==========================================================================
-"""
-Paste these fully productionized handlers directly where your web socket 
-initialization setup is processed (sockets.py or __init__.py):
-
-from flask_socketio import emit, join_room
-from flask_login import current_user
-from kerala_ride import socketio
-
-@socketio.on('join_passenger_pool')
-def handle_passenger_pool_registration(payload):
-    # Locks passenger into a distinct private channel room named after their unique database ID
-    if current_user.is_authenticated:
-        room_id = f"passenger_room_{current_user.id}"
-        join_room(room_id)
-        print(f"🔒 [SOCKET ROOM LOCK] Passenger {current_user.id} joined channel {room_id}")
-
-@socketio.on('update_driver_coordinates')
-def process_incoming_fleet_gps(payload):
-    # This captures genuine GPS updates from the separate Driver App terminal console
-    driver_id = payload.get('driver_id')
-    lat = payload.get('lat')
-    lng = payload.get('lng')
-    tier = payload.get('vehicle_tier') # auto, mini, sedan, suv
-    
-    # Instantly pushes real coordinates directly down to all active nearby passengers
-    emit('fleet_coordinates_broadcast', {
-        'driver_id': driver_id,
-        'lat': lat,
-        'lng': lng,
-        'vehicle_tier': tier
-    }, broadcast=True)
-
-@socketio.on('trigger_sos')
-def handle_sos_alert(payload):
-    user_identity = current_user.name if current_user.is_authenticated else "Anonymous User"
-    print(f"🚨 CRITICAL SOS ALERT RECEIVED From: {user_identity}")
-    
-    emit('admin_receive_sos', {
-        'user': user_identity,
-        'lat': payload.get('lat'),
-        'lng': payload.get('lng'),
-        'time': payload.get('timestamp')
-    }, broadcast=True)
-
-@socketio.on('send_message')
-def handle_incoming_chat(payload):
-    emit('receive_message', {
-        'text': payload.get('text'),
-        'timestamp': payload.get('timestamp')
-    }, broadcast=True, include_self=False)
-"""
