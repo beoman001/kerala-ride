@@ -15,7 +15,7 @@
             <p style="color: var(--text-muted); font-size: 14px;">Manage your requests, saved hubs, and safety contacts</p>
         </div>
         <div style="display: flex; gap: 10px;">
-            <a href="{{ url_for('customer.book') }}?booking_type=passenger" class="btn btn-primary btn-sm">
+            <a href="{{ url_for('main.book_ride') }}" class="btn btn-primary btn-sm">
                 <i class="fa-solid fa-car"></i> Book Passenger Ride
             </a>
             <a href="{{ url_for('customer.book') }}?booking_type=goods" class="btn btn-accent btn-sm">
