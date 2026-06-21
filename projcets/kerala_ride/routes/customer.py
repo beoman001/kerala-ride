@@ -8,7 +8,6 @@ from flask_login import login_required, current_user
 from twilio.rest import Client
 
 # IMPORT CORE SYSTEM CONTEXT HOOKS
-# 🎯 FIX: Added IncidentReport to the import list!
 from kerala_ride import db, socketio, celery_app
 from kerala_ride.models import Booking, SavedLocation, FareConfig, PromoOffer, EmergencyContact, Driver, User, IncidentReport
 
@@ -127,38 +126,48 @@ def processed_delayed_sms_broadcast(booking_id, district, vehicle_cat):
 @login_required
 def book():
     if request.method == 'POST':
-        booking_type = request.form.get('booking_type', 'passenger')
+        booking_type = request.form.get('booking_type', 'passenger').strip()
         pickup = request.form.get('pickup', '').strip()
         destination = request.form.get('destination', '').strip()
+        
+        # ⚡ FIX: Added robust fallback lookup layer to read the specific variant fields if master field drops blank
         vehicle_category = request.form.get('vehicle_category')
+        if not vehicle_category:
+            if booking_type == 'goods':
+                vehicle_category = request.form.get('vehicle_category_goods')
+            else:
+                vehicle_category = request.form.get('vehicle_category_passenger')
+        
         payment_method = request.form.get('payment_method', 'Cash')
         promo_code = request.form.get('promo_code', '').strip().upper()
-        estimated_fare_raw = request.form.get('estimated_fare')
         
-        # Safe float casting
+        # Safe float casting handles
+        estimated_fare_raw = request.form.get('estimated_fare', '0.0').strip()
         estimated_fare = float(estimated_fare_raw) if estimated_fare_raw else 0.0
         
-        # Target specific district context sent from the front-end layout map picker
         pickup_district = request.form.get('pickup_district', '').strip()
 
         # Goods cargo details
         material_description = request.form.get('material_description', '').strip()
-        weight_raw = request.form.get('weight')
+        weight_raw = request.form.get('weight', '0.0').strip()
         weight = float(weight_raw) if (booking_type == 'goods' and weight_raw) else None
 
-        # 🎯 NEW: Parse Scheduled Time
+        # Parse Scheduled Time
         scheduled_time_raw = request.form.get('scheduled_time')
         parsed_scheduled_time = None
         if scheduled_time_raw:
             try:
-                # HTML5 datetime-local inputs come in 'YYYY-MM-DDTHH:MM' format
                 parsed_scheduled_time = datetime.strptime(scheduled_time_raw, '%Y-%m-%dT%H:%M')
             except ValueError:
                 print(f"Warning: Failed to parse scheduled time: {scheduled_time_raw}")
 
-        if not pickup or not destination or not vehicle_category:
-            flash("Please fill in all required fields.", "danger")
-            return redirect(url_for('customer.book'))
+        # ⚡ FIX: Better default string assignment prevents database column constraints from flagging null errors
+        if not vehicle_category:
+            vehicle_category = "Auto Rickshaw" if booking_type == "passenger" else "Goods Auto"
+
+        if not pickup or not destination:
+            flash("Please supply precise locations via the map markers before booking.", "danger")
+            return redirect(url_for('main.book_ride'))
 
         try:
             # Map parameters perfectly to your database model columns
@@ -172,7 +181,7 @@ def book():
                 estimated_fare=estimated_fare,
                 material_description=material_description if booking_type == 'goods' else None,
                 weight=weight,
-                scheduled_time=parsed_scheduled_time, # 🎯 NEW
+                scheduled_time=parsed_scheduled_time,
                 status="Pending"
             )
 
@@ -189,7 +198,7 @@ def book():
                     'fare': new_booking.estimated_fare,
                     'cargo_desc': new_booking.material_description,
                     'weight': new_booking.weight,
-                    'is_scheduled': True if parsed_scheduled_time else False # Tell the driver if it's for later!
+                    'is_scheduled': True if parsed_scheduled_time else False
                 })
             except Exception as sock_err:
                 print(f"WebSocket warning bypassed: {sock_err}")
@@ -214,7 +223,7 @@ def book():
             db.session.rollback()
             print(f"Database Insertion Error: {e}")
             flash("An error occurred while creating your booking. Please try again.", "danger")
-            return redirect(url_for('customer.book'))
+            return redirect(url_for('main.book_ride'))
 
     locations = []
     try:
@@ -222,7 +231,7 @@ def book():
     except Exception as e:
         print(f"Error loading saved locations: {e}")
 
-    return render_template('customer/book.html', locations=locations)
+    return render_template('book.html', locations=locations)
 
 
 # ==========================================
@@ -413,19 +422,19 @@ def cancel_ride(booking_id):
         booking.final_fare = 0.0
         flash("Your ride has been cancelled successfully without any penalty.", "success")
 
+    booking.status = "Cancelled"
     db.session.commit()
     return redirect(url_for('customer.dashboard'))
 
 
 # ==========================================
-# 4. RATINGS & TRUST & SAFETY INCIDENT REPORTING (NEW)
+# 4. RATINGS & TRUST & SAFETY INCIDENT REPORTING
 # ==========================================
 @customer_bp.route('/rate-ride/<int:booking_id>', methods=['POST'])
 @login_required
 def rate_ride(booking_id):
     booking = Booking.query.get_or_404(booking_id)
     
-    # Security check
     if booking.customer_id != current_user.id:
         flash("Unauthorized action.", "danger")
         return redirect(url_for('customer.dashboard'))
@@ -453,7 +462,6 @@ def rate_ride(booking_id):
 def report_incident(booking_id):
     booking = Booking.query.get_or_404(booking_id)
     
-    # Security check
     if booking.customer_id != current_user.id:
         flash("Unauthorized action.", "danger")
         return redirect(url_for('customer.dashboard'))
@@ -462,7 +470,6 @@ def report_incident(booking_id):
     details = request.form.get('details', '').strip()
 
     if reason:
-        # Protect against reporting a trip that hasn't been assigned a driver yet
         reported_driver_id = booking.driver.user.id if booking.driver else 0
         
         new_report = IncidentReport(
@@ -493,7 +500,7 @@ def add_location():
 
     if not label or not address:
         flash("Label and Address parameters are required.", "danger")
-        return redirect(url_for('customer.book'))
+        return redirect(url_for('main.book_ride'))
 
     try:
         new_loc = SavedLocation(
@@ -509,7 +516,7 @@ def add_location():
         print(f"Error saving location parameters: {e}")
         flash("Could not save location configurations.", "danger")
 
-    return redirect(url_for('customer.book'))
+    return redirect(url_for('main.book_ride'))
 
 
 # ==========================================
