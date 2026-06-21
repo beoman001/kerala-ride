@@ -258,12 +258,18 @@
                         </div>
 
                         <div class="mb-3 p-3 rounded" style="background-color: #f8fafc; border: 1px solid #e2e8f0;" id="waitingChargeWrapper">
-                            <label class="form-label" for="waiting_minutes"><i class="fa-regular fa-clock me-1 text-secondary"></i> Schedule Waiting Duration / Stay</label>
+                            <label class="form-label" for="waiting_minutes"><i class="fa-regular fa-clock me-1 text-secondary"></i> Schedule Waiting Duration / Stayover Package</label>
                             <select id="waiting_minutes" name="waiting_minutes" class="form-select form-control" onchange="resetEstimation()">
                                 <option value="0" selected>Direct Transit (No Waiting Charge)</option>
                                 <option value="60">1 Hour Stop (+ ₹100.00)</option>
+                                <option value="120">2 Hours Stop (+ ₹200.00)</option>
+                                <option value="180">3 Hours Stop (+ ₹300.00)</option>
+                                <option value="240">4 Hours Stop (+ ₹400.00)</option>
+                                <option value="300">5 Hours Stop (+ ₹500.00)</option>
+                                <option value="360">6 Hours Stop (+ ₹600.00)</option>
+                                <option value="420">7 Hours Stop (+ ₹700.00)</option>
                                 <option value="480">8 Hours Stop (+ ₹800.00)</option>
-                                <option value="1440">1 Day Stay Over (+ ₹1000.00)</option>
+                                <option value="1440">1 Day Full Stay Over (+ ₹1000.00)</option>
                             </select>
                         </div>
 
