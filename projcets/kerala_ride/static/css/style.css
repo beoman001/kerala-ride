@@ -11,7 +11,7 @@
     --accent-success: #16a34a;     /* Success Green */
     
     --text-main: #1f2937;          /* Charcoal Black */
-    --text-muted: #4b5563;         /* Slate Grey */
+    --text-muted: #4b5563;          /* Slate Grey */
     --text-white: #ffffff;
     
     --bg-main: #f8fafc;            /* Off-white background */
@@ -404,14 +404,25 @@ footer {
    🚕 UBER-STYLE HOME SCREEN & APP MENUS
    ========================================================================== */
 
-/* Fullscreen Map Background */
+/* ⚡ HIGH-PRIORITY LEAFLET CANVAS OVERWRITE: Fixes broken or gray maps */
 .app-home-layout {
     position: relative;
+    width: 100%;
     height: calc(100dvh - 70px); 
-    margin: -20px; 
-    background-color: #e2e8f0;
+    margin: 0; 
+    background-color: #f1f5f9;
     overflow: hidden;
     transform: translateZ(0);   
+}
+
+#home-live-map {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 55% !important;
+    max-height: 55vh !important;
+    z-index: 5 !important;
 }
 
 .home-map-bg {
@@ -460,13 +471,13 @@ footer {
     width: 100%;
     background: var(--bg-card);
     border-radius: 24px 24px 0 0;
-    padding: 16px 20px 24px 20px; /* Reduced padding to lift elements into direct visibility */
+    padding: 16px 20px 24px 20px; 
     box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
     z-index: 10;
     display: flex;
     flex-direction: column;
-    height: 60%; /* Expanded to fit vehicle carousel along with wait modules */
-    max-height: 65vh;
+    height: 45%; 
+    max-height: 45vh;
 }
 
 .sheet-drag-handle {
@@ -612,6 +623,16 @@ footer {
 }
 
 /* ==========================================================================
+   🚨 FLOATING NAVIGATION OVERLAYS - Fix for Leaflet visibility conflict
+   ========================================================================== */
+.floating-sos-trigger {
+    z-index: 999 !important;
+}
+.floating-chat-toggle {
+    z-index: 999 !important;
+}
+
+/* ==========================================================================
    💬 ENHANCED MOBILE CHAT SPACING & INPUT TARGETS
    ========================================================================== */
 .chat-input-area {
@@ -624,17 +645,16 @@ footer {
     padding-bottom: env(safe-area-inset-bottom, 20px); 
 }
 
-/* ⚡ FIX: Invisible Chat Text Correction */
 .direct-messenger-input {
     flex: 1;
-    height: 54px !important; /* Strict height instead of min-height */
+    height: 54px !important; 
     font-size: 16px !important;
-    padding: 0 18px !important; /* Removed vertical padding to prevent text clipping */
-    line-height: 54px !important; /* Mathematically centers text */
+    padding: 0 18px !important; 
+    line-height: 54px !important; 
     border-radius: 14px !important;
     border: 1px solid var(--border-color, #e2e8f0);
     background-color: #f8fafc;
-    color: #1f2937 !important; /* Force text color */
+    color: #1f2937 !important; 
     box-sizing: border-box;
     margin: 0;
 }
