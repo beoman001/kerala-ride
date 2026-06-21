@@ -82,6 +82,8 @@
         cursor: pointer;
     }
 
+    .floating-sos-trigger:active { transform: scale(0.9); }
+
     .floating-chat-toggle {
         position: absolute;
         top: 88px;
@@ -373,19 +375,47 @@
     document.addEventListener("DOMContentLoaded", function() {
         updateNetworkConnectionStatus(); 
 
+        // ⚡ Lag-Free Accelerated Configuration Options 
         var map = L.map('home-live-map', {
             zoomControl: false,
-            preferCanvas: true,
+            preferCanvas: true,        // Renders visual items as vectors instead of heavy individual DOM layers
             bounceAtZoomLimits: false,
-            inertia: false,
+            inertia: false,            // Prevents slow frame rate panning degradation loops
+            zoomAnimation: false,      // Disables heavy animations on mobile graphics chips
+            fadeAnimation: false,      // Stops tile-fading lag during rapid pans
+            markerZoomAnimation: false,
             wheelDebounceTime: 150
         }).setView([currentLatitude, currentLongitude], 14);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
-            updateWhenIdle: true,
-            keepBuffer: 2
+            updateWhenIdle: true,      // post-processes loading after tracking pans stabilize 
+            keepBuffer: 1,             // Minimized tile rendering buffer footprint
+            unloadInvisibleTiles: true // Instantly purges off-screen tile chunks from phone RAM
         }).addTo(map);
+
+        // ==========================================================================
+        // ⚡ ANTI-LAG SHEET INTERSECTION WATCHERS (Layout Thrashing Fix)
+        // ==========================================================================
+        let mapResizeTimeout;
+        const resizeObserver = new ResizeObserver(() => {
+            clearTimeout(mapResizeTimeout);
+            mapResizeTimeout = setTimeout(() => {
+                map.invalidateSize({ animate: false }); 
+            }, 100); 
+        });
+
+        const homeLayout = document.querySelector('.app-home-layout');
+        if (homeLayout) {
+            resizeObserver.observe(homeLayout);
+        }
+        
+        const chatToggle = document.getElementById("chat-toggle-btn");
+        if(chatToggle) {
+            chatToggle.addEventListener("click", function() {
+                setTimeout(() => { map.invalidateSize(); }, 350);
+            });
+        }
 
         var userDotIcon = L.divIcon({
             className: 'custom-user-dot',
@@ -453,7 +483,6 @@
             });
         }
 
-        // Book Ride Execution logic pipeline attachment hook
         const bookRideActionBtn = document.getElementById("main-book-ride-execution-btn");
         if(bookRideActionBtn) {
             bookRideActionBtn.addEventListener("click", function() {
