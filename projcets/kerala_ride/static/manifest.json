@@ -1,22 +1,21 @@
 {
-  "id": "com.keralaride.connect",
   "name": "KeralaRide Connect",
   "short_name": "KeralaRide",
   "description": "Kerala's premier verified transport marketplace for passenger rides and goods logistics.",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#064e3b",
-  "orientation": "portrait",
   "icons": [
     {
-      "src": "/static/icon-192.png",
+      "src": "/static/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "/static/icon-512.png",
+      "src": "/static/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -24,18 +23,27 @@
   ],
   "screenshots": [
     {
-      "src": "/static/screenshot-mobile.png",
+      "src": "/static/screenshots/screenshot-mobile.png",
       "sizes": "1080x1920",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Driver Dashboard"
+      "label": "Driver Dashboard and Live Map Tracking"
     },
     {
-      "src": "/static/screenshot-desktop.png",
+      "src": "/static/screenshots/screenshot-detop.png",
       "sizes": "1920x1080",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Admin Console"
+      "label": "Admin Logistics Console"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Book a Ride",
+      "short_name": "Book",
+      "description": "Quickly book a passenger ride",
+      "url": "/customer",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
