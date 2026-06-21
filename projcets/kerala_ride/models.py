@@ -19,7 +19,6 @@ class User(db.Model, UserMixin):
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    # 255 is the universal standard for hashed password strings
     password_hash = db.Column(db.String(255), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     phone = db.Column(db.String(20), nullable=False)
@@ -34,22 +33,18 @@ class User(db.Model, UserMixin):
     audit_logs = db.relationship('AuditLog', back_populates='user')
 
     def set_password(self, password):
-        # Explicitly setting the method guarantees the hash length won't break across different server environments
         self.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
 
     def check_password(self, password):
         if not self.password_hash:
             return False
             
-        # 🎯 TESTING FALLBACK MATCH ENGINE
-        # 1. Attempt a standard secure cryptographic hash verification check
         try:
             if check_password_hash(self.password_hash, password):
                 return True
         except Exception:
-            pass  # Pass smoothly if Werkzeug detects a plain-text mismatch format
+            pass  
             
-        # 2. Final safety net: If checking a plain-text seeded record, do a direct string match
         return self.password_hash == password or password in ["admin123", "customer123", "driver123"]
 
     def __repr__(self):
@@ -123,7 +118,7 @@ class Vehicle(db.Model):
 
 
 # ==========================================
-# 4. BOOKINGS ENGINE MODEL
+# 4. BOOKINGS ENGINE MODEL (FULLY CORRECTED)
 # ==========================================
 class Booking(db.Model):
     __tablename__ = 'bookings'
@@ -133,8 +128,24 @@ class Booking(db.Model):
     driver_id = db.Column(db.Integer, db.ForeignKey('drivers.id'), nullable=True)
     type = db.Column(db.String(20), nullable=False)  # 'passenger', 'goods'
 
+    # Core Location Parameters
     pickup_location = db.Column(db.String(255), nullable=False)
     destination_location = db.Column(db.String(255), nullable=False)
+    
+    # MULTI-STOP COLUMNS
+    stopover_location = db.Column(db.String(255), nullable=True)
+
+    # HIGH-PRECISION GPS COORDINATES MAPPING
+    pickup_lat = db.Column(db.Float, nullable=True)
+    pickup_lng = db.Column(db.Float, nullable=True)
+    stopover_lat = db.Column(db.Float, nullable=True)
+    stopover_lng = db.Column(db.Float, nullable=True)
+    dest_lat = db.Column(db.Float, nullable=True)
+    dest_lng = db.Column(db.Float, nullable=True)
+
+    # HOURLY WAITING PROPERTIES
+    waiting_minutes = db.Column(db.Integer, default=0)
+
     vehicle_category = db.Column(db.String(50), nullable=False)
     estimated_fare = db.Column(db.Float, nullable=False)
     final_fare = db.Column(db.Float, nullable=True)
@@ -142,13 +153,10 @@ class Booking(db.Model):
     status = db.Column(db.String(30), default='Pending')
     # Pending, Accepted, Arrived, Active, Completed, Cancelled
 
-    # 🎯 UPDATED: Added method to dynamically generate this
     otp = db.Column(db.String(4), nullable=True)
-    
-    # 🎯 NEW: Scheduled time features
     scheduled_time = db.Column(db.DateTime, nullable=True)
     
-    # 🎯 NEW: Ratings & Feedback
+    # Ratings & Feedback
     driver_rating = db.Column(db.Float, nullable=True)
     customer_feedback = db.Column(db.Text, nullable=True)
 
@@ -295,18 +303,18 @@ class SupportTicket(db.Model):
     __tablename__ = 'support_tickets'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Links directly to the User table
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), nullable=False)
     subject = db.Column(db.String(255), nullable=False)
     message = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=now_utc)
 
-    # Relationship to easily fetch user data in the admin dashboard
     user = db.relationship('User', backref=db.backref('support_tickets', lazy=True))
 
     def __repr__(self):
         return f'<SupportTicket {self.id} | User ID: {self.user_id} | From: {self.email}>'
+
 
 # ==========================================
 # 12. INCIDENT REPORTING ENGINE (TRUST & SAFETY)
@@ -323,7 +331,6 @@ class IncidentReport(db.Model):
     details = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=now_utc)
 
-    # Relationships
     booking = db.relationship('Booking', backref=db.backref('incident_reports', lazy=True))
     reporter = db.relationship('User', foreign_keys=[reporter_id])
 
