@@ -280,8 +280,7 @@
                 <input type="text" id="start-node" class="form-control" placeholder="Starting position (GPS Lock active)" style="min-height:40px; font-size:14px;" readonly>
             </div>
             
-            <div id="dynamic-stops-wrapper">
-                </div>
+            <div id="dynamic-stops-wrapper"></div>
 
             <div class="stop-input-row">
                 <i class="fa-solid fa-location-pin" style="color: var(--accent-danger);"></i>
@@ -380,14 +379,21 @@
 
     // 🗺️ Map Initialization Setup
     document.addEventListener("DOMContentLoaded", function() {
-        updateNetworkConnectionStatus(); // Run immediate offline diagnostics scan check
+        updateNetworkConnectionStatus(); 
 
+        // ⚡ Lag-Free Accelerated Configuration Options 
         var map = L.map('home-live-map', {
-            zoomControl: false 
+            zoomControl: false,
+            preferCanvas: true,        // Renders visual items as vectors instead of heavy individual DOM layers
+            bounceAtZoomLimits: false,
+            inertia: false,            // Prevents slow frame rate panning degradation loops
+            wheelDebounceTime: 150
         }).setView([currentLatitude, currentLongitude], 14);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
+            attribution: '© OpenStreetMap contributors',
+            updateWhenIdle: true,      // post-processes loading after tracking pans stabilize 
+            keepBuffer: 2              // Pre-caches border assets outside view boundaries
         }).addTo(map);
 
         var userDotIcon = L.divIcon({
@@ -449,24 +455,19 @@
                     return;
                 }
 
-                // Simulate routing distance calculation array sequences safely offline
                 const baseDistanceKm = 12.4 + (stopsWrapper.children.length * 5.2);
                 
-                // Prompt user configuration values for waiting/stay parameters
                 let waitHours = parseInt(prompt("Enter total planned intermediate stop wait time duration (Hours):", "0")) || 0;
                 let stayDays = parseInt(prompt("Enter total driver overnight outstation stays needed (Nights):", "0")) || 0;
 
-                // Execute absolute fallback bounds checking validation
                 if(waitHours < 0) waitHours = 0;
                 if(stayDays < 0) stayDays = 0;
 
-                // Compute financial projections based on user parameters input
-                const baseFare = 150 + (baseDistanceKm * 15); // Standard baseline parameter formula metric 
-                const waitFareValue = waitHours * 100;       // ₹100 per hour limit rate rule configuration 
-                const stayFareValue = stayDays * 1000;      // ₹1000 per outstation overnight night stay limit rule
+                const baseFare = 150 + (baseDistanceKm * 15); 
+                const waitFareValue = waitHours * 100;       
+                const stayFareValue = stayDays * 1000;      
                 const totalCost = baseFare + waitFareValue + stayFareValue;
 
-                // Write calculations to active front-end nodes display elements
                 document.getElementById("rendered-distance").textContent = baseDistanceKm.toFixed(2) + " km";
                 document.getElementById("base-fare-val").textContent = "₹" + baseFare.toFixed(2);
                 document.getElementById("wait-hrs-display").textContent = waitHours;
