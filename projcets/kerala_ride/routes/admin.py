@@ -36,16 +36,21 @@ def dashboard():
     total_bookings = Booking.query.count()
     total_tickets = SupportTicket.query.count()
 
+    # ⚡ SAFE FIX: Fallback arithmetic casting logic handles NULL fields cleanly
     completed_bookings = Booking.query.filter_by(status='Completed').all()
-    total_revenue = sum((b.final_fare or b.estimated_fare) for b in completed_bookings)
+    total_revenue = sum((float(b.final_fare or b.estimated_fare or 0.0)) for b in completed_bookings)
 
     active_sos = SOSAlert.query.filter_by(status='Active').order_by(SOSAlert.triggered_at.desc()).all()
     recent_logs = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(10).all()
 
+    # ⚡ SAFE FIX: Hardened district lookup prevents dictionary unpack execution faults
     district_counts = {}
     for d in Driver.query.all():
-        if d.district:
-            district_counts[d.district] = district_counts.get(d.district, 0) + 1
+        if d.district and d.district.strip():
+            district_name = d.district.strip()
+            district_counts[district_name] = district_counts.get(district_name, 0) + 1
+        else:
+            district_counts['Unassigned'] = district_counts.get('Unassigned', 0) + 1
 
     return render_template(
         'admin/dashboard.html',
@@ -142,7 +147,7 @@ def add_promo():
         flash(f'Promo code {code} already exists.', 'warning')
         return redirect(url_for('admin.campaigns'))
     promo = PromoOffer(code=code, description=desc, discount_percentage=discount,
-                        expiry_date=now_utc() + timedelta(days=days))
+                       expiry_date=now_utc() + timedelta(days=days))
     db.session.add(promo)
     log_action("Create Promo", f"Created promo code {code} ({discount}% off, valid {days} days).")
     db.session.commit()
