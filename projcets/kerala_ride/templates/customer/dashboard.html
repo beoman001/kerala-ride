@@ -142,7 +142,7 @@
                                     <div style="font-size: 12px; color: var(--text-muted);">To: {{ booking.destination_location.split(',')[0] }}</div>
                                 </td>
                                 <td data-label="Vehicle" style="padding: 12px 10px;">{{ booking.vehicle_category }}</td>
-                                <td data-label="Fare Matrix" style="padding: 12px 10px; font-weight: bold;">₹{{ booking.estimated_fare }}</td>
+                                <td data-label="Fare Matrix" style="padding: 12px 10px; font-weight: bold;">₹{{ booking.display_fare if booking.display_fare else booking.estimated_fare }}</td>
                                 <td data-label="Status" style="padding: 12px 10px;">
                                     <span class="badge" style="padding: 4px 8px; border-radius: 4px; font-weight: bold;">{{ booking.status }}</span>
                                 </td>
@@ -308,6 +308,13 @@
                 .bindPopup("<b>Your Pickup Spot</b>")
                 .openPopup();
         }
+
+        // Force Leaflet context geometry recalculation to resolve viewport clipping
+        setTimeout(() => {
+            if (customerTrackingMaps[bookingId]) {
+                customerTrackingMaps[bookingId].invalidateSize({ animate: false });
+            }
+        }, 200);
 
         const socket = io({
             transports: ['websocket'],
