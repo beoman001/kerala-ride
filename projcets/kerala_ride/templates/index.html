@@ -168,100 +168,7 @@
     .tier-card h4 { font-size: 14px; font-weight: 700; margin: 0; color: #1f2937; white-space: nowrap; }
     .tier-card span { font-size: 11px; color: #6b7280; margin-top: 2px; }
 
-    .chat-drawer-container {
-        position: fixed;
-        bottom: -100%;
-        left: 0;
-        width: 100%;
-        height: 80vh;
-        background: var(--bg-card, #ffffff);
-        border-radius: 30px 30px 0 0;
-        box-shadow: 0 -8px 32px rgba(0,0,0,0.15);
-        z-index: 100001;
-        transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        display: flex;
-        flex-direction: column;
-    }
-
-    .chat-drawer-container.active { bottom: 0; }
-
-    .chat-drawer-header {
-        padding: 20px;
-        border-bottom: 1px solid var(--border-color, #e2e8f0);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .chat-messages-container {
-        flex: 1;
-        padding: 20px;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-        background-color: #f8fafc;
-    }
-
-    .chat-bubble {
-        max-width: 80%;
-        padding: 14px 18px;
-        border-radius: 16px;
-        font-size: 16px;
-        line-height: 1.5;
-    }
-
-    .chat-bubble.sent {
-        align-self: flex-end;
-        background-color: var(--primary-color, #064e3b);
-        color: #ffffff;
-        border-bottom-right-radius: 4px;
-    }
-
-    .chat-bubble.received {
-        align-self: flex-start;
-        background-color: #e2e8f0;
-        color: var(--text-main, #1f2937);
-        border-bottom-left-radius: 4px;
-    }
-
-    .chat-input-area {
-        padding: 16px;
-        border-top: 1px solid var(--border-color, #e2e8f0);
-        background: #ffffff;
-        display: flex;
-        gap: 12px;
-        align-items: center;
-        padding-bottom: env(safe-area-inset-bottom, 20px); 
-    }
-
-    .direct-messenger-input {
-        flex: 1;
-        height: 54px !important;
-        font-size: 16px !important;
-        padding: 0 18px !important;
-        line-height: 54px !important;
-        border-radius: 14px !important;
-        border: 1px solid var(--border-color, #e2e8f0);
-        background-color: #f8fafc;
-        color: #1f2937 !important;
-        box-sizing: border-box;
-        margin: 0;
-    }
-
-    .direct-messenger-btn {
-        min-height: 54px !important; 
-        width: 54px !important;
-        padding: 0;
-        margin: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 14px !important;
-        font-size: 18px;
-    }
-
-    /* ⚡ UPGRADED HOME APP CONTTAINER FLOW */
+    /* ⚡ UPGRADED HOME APP CONTAINER FLOW */
     .app-home-layout {
         position: relative;
         width: 100%;
@@ -383,7 +290,7 @@
                 splash.style.opacity = '0';
                 splash.style.visibility = 'hidden';
             }
-        }, 1500); // Optimized splash countdown for speed
+        }, 1500);
     });
 
     function updateNetworkConnectionStatus() {
@@ -391,25 +298,27 @@
         if(offlineBanner) offlineBanner.style.display = navigator.onLine ? "none" : "block";
     }
 
-    var currentLatitude = 9.9816;
-    var currentLongitude = 76.2999;
-    var simulatedDrivers = [];
+    // ⚡ PRECISE TRACKING MODE ENGINE MATRIX HOOKS
+    let map;
+    let userMarker = null;
+    let simulatedDrivers = [];
+    let selectedTier = "Auto Rickshaw";
+    let currentLat = 9.9816;
+    let currentLng = 76.2999;
 
-    document.addEventListener("DOMContentLoaded", function() {
-        updateNetworkConnectionStatus(); 
-
-        var map = L.map('home-live-map', {
+    function initPreciseTrackingMap() {
+        map = L.map('home-live-map', {
             zoomControl: false,
             preferCanvas: true,        
-            scrollWheelZoom: false
-        }).setView([currentLatitude, currentLongitude], 13);
+            scrollWheelZoom: false,
+            dragging: true
+        }).setView([currentLat, currentLng], 14);
 
         L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
             attribution: '© OpenStreetMap contributors © CARTO',
             maxZoom: 19
         }).addTo(map);
 
-        // Force Leaflet recalculation bounds loop handles fractional box updates
         setTimeout(() => { map.invalidateSize(); }, 350);
 
         var userDotIcon = L.divIcon({
@@ -419,59 +328,73 @@
             iconAnchor: [8, 8]
         });
 
-        var userMarker = L.marker([currentLatitude, currentLongitude], {icon: userDotIcon}).addTo(map);
-
-        function seedNearbyDrivers(lat, lng) {
-            simulatedDrivers.forEach(d => map.removeLayer(d.marker));
-            simulatedDrivers = [];
-
-            const driverIconHtml = `
-                <div style="background:#064e3b; width:28px; height:28px; border-radius:50%; border:2px solid white; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.3); transition: transform 0.5s linear;">
-                    <i class="fa-solid fa-car" style="color:white; font-size:12px;"></i>
-                </div>`;
-            
-            const cabIcon = L.divIcon({ className: 'cab-marker-node', html: driverIconHtml, iconSize: [28, 28] });
-
-            for(let i = 0; i < 6; i++) {
-                let dLat = lat + (Math.random() - 0.5) * 0.015;
-                let dLng = lng + (Math.random() - 0.5) * 0.015;
-                let marker = L.marker([dLat, dLng], { icon: cabIcon }).addTo(map);
-                simulatedDrivers.push({ marker: marker, lat: dLat, lng: dLng });
-            }
-        }
-
-        setInterval(() => {
-            simulatedDrivers.forEach(d => {
-                d.lat += (Math.random() - 0.5) * 0.001;
-                d.lng += (Math.random() - 0.5) * 0.001;
-                d.marker.setLatLng([d.lat, d.lng]);
-            });
-        }, 3000);
+        userMarker = L.marker([currentLat, currentLng], {icon: userDotIcon}).addTo(map);
 
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(function(position) {
-                currentLatitude = position.coords.latitude;
-                currentLongitude = position.coords.longitude;
-                var pos = [currentLatitude, currentLongitude];
-                map.setView(pos, 13);
-                userMarker.setLatLng(pos);
-                seedNearbyDrivers(currentLatitude, currentLongitude);
+                currentLat = position.coords.latitude;
+                currentLng = position.coords.longitude;
+                var currentPos = [currentLat, currentLng];
+                
+                map.setView(currentPos, 14);
+                userMarker.setLatLng(currentPos);
+                
+                seedNearbyDrivers(currentLat, currentLng);
+                updateLiveBookingLinks();
             });
+        } else {
+            seedNearbyDrivers(currentLat, currentLng);
+            updateLiveBookingLinks();
         }
+    }
 
-        // Handle Active Selection updates across Carousel Rows
+    function seedNearbyDrivers(lat, lng) {
+        simulatedDrivers.forEach(d => map.removeLayer(d.marker));
+        simulatedDrivers = [];
+
+        const driverIconHtml = `
+            <div style="background:#064e3b; width:28px; height:28px; border-radius:50%; border:2px solid white; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.3);">
+                <i class="fa-solid fa-car" style="color:white; font-size:12px;"></i>
+            </div>`;
+        
+        const cabIcon = L.divIcon({ className: 'cab-marker-node', html: driverIconHtml, iconSize: [28, 28] });
+
+        for(let i = 0; i < 6; i++) {
+            let dLat = lat + (Math.random() - 0.5) * 0.012;
+            let dLng = lng + (Math.random() - 0.5) * 0.012;
+            let marker = L.marker([dLat, dLng], { icon: cabIcon }).addTo(map);
+            simulatedDrivers.push({ marker: marker, lat: dLat, lng: dLng });
+        }
+    }
+
+    function updateLiveBookingLinks() {
+        const bookRideBtn = document.getElementById('bookRideLnk');
+        if (bookRideBtn) {
+            const encodedCoords = encodeURIComponent(`${currentLat.toFixed(5)},${currentLng.toFixed(5)}`);
+            bookRideBtn.href = `{{ url_for('customer.book') }}?booking_type=passenger&category=${encodeURIComponent(selectedTier)}&pickup_lat=${currentLat}&pickup_lng=${currentLng}&pickup=${encodedCoords}`;
+        }
+    }
+
+    setInterval(() => {
+        simulatedDrivers.forEach(d => {
+            d.lat += (Math.random() - 0.5) * 0.0008;
+            d.lng += (Math.random() - 0.5) * 0.0008;
+            d.marker.setLatLng([d.lat, d.lng]);
+        });
+    }, 3000);
+
+    document.addEventListener("DOMContentLoaded", function() {
+        updateNetworkConnectionStatus(); 
+        initPreciseTrackingMap();
+
         const cards = document.querySelectorAll('.tier-card');
         cards.forEach(card => {
             card.addEventListener('click', function() {
                 cards.forEach(c => c.classList.remove('selected'));
                 this.classList.add('selected');
                 
-                // Dynamically pass selected tier to query configurations
-                const tier = this.dataset.tier;
-                const rideBtn = document.getElementById('bookRideLnk');
-                if (rideBtn) {
-                    rideBtn.href = `{{ url_for('customer.book') }}?booking_type=passenger&category=${encodeURIComponent(tier)}`;
-                }
+                selectedTier = this.dataset.tier;
+                updateLiveBookingLinks();
             });
         });
 
