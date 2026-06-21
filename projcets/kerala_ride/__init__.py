@@ -211,6 +211,15 @@ def create_app(test_config=None):
             response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
         return response
 
+    # 🎯 SERVICE WORKER ROUTING WALL: Bypasses standard static folders so phones execute the worker globally
+    @app.route('/service-worker.js')
+    def serve_service_worker():
+        from flask import send_from_directory
+        response = send_from_directory(app.static_folder, 'js/service-worker.js')
+        # Ensure the worker file itself is never cached by the server so changes update instantly
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return response
+
     return app
 
 def seed_database(app):
