@@ -624,14 +624,17 @@ footer {
     padding-bottom: env(safe-area-inset-bottom, 20px); 
 }
 
+/* ⚡ FIX: Invisible Chat Text Correction */
 .direct-messenger-input {
     flex: 1;
-    min-height: 54px !important; 
+    height: 54px !important; /* Strict height instead of min-height */
     font-size: 16px !important;
-    padding: 12px 18px;
+    padding: 0 18px !important; /* Removed vertical padding to prevent text clipping */
+    line-height: 54px !important; /* Mathematically centers text */
     border-radius: 14px !important;
     border: 1px solid var(--border-color, #e2e8f0);
     background-color: #f8fafc;
+    color: #1f2937 !important; /* Force text color */
     box-sizing: border-box;
     margin: 0;
 }
