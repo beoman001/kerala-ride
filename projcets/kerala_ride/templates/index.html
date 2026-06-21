@@ -153,6 +153,83 @@
         color: var(--text-muted, #4b5563);
     }
 
+    /* 🚖 PREMIUM HORIZONTAL TIER SELECTOR CAROUSEL */
+    .tier-carousel-container {
+        display: flex;
+        gap: 12px;
+        overflow-x: auto;
+        padding: 8px 4px;
+        margin-top: 16px;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+    }
+    .tier-carousel-container::-webkit-scrollbar { display: none; }
+
+    .tier-card {
+        flex: 0 0 105px;
+        scroll-snap-align: start;
+        background: #f8fafc;
+        border: 2px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 12px 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .tier-card.active {
+        border-color: var(--primary-color, #064e3b);
+        background: #f0fdf4;
+        box-shadow: 0 4px 12px rgba(6, 78, 59, 0.1);
+    }
+    .tier-card img { width: 52px; height: auto; margin-bottom: 6px; }
+    .tier-card h4 { font-size: 13px; font-weight: 700; margin: 0; color: #1f2937; white-space: nowrap; }
+    .tier-card span { font-size: 11px; color: #6b7280; margin-top: 2px; }
+    .tier-price { font-size: 13px; font-weight: 800; color: var(--primary-color); margin-top: 4px; }
+
+    /* 💳 UPI/METHOD SELECTOR INTERFACE */
+    .payment-method-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #f1f5f9;
+        padding: 12px 16px;
+        border-radius: 14px;
+        margin-top: 14px;
+        cursor: pointer;
+    }
+
+    .payment-options-drawer {
+        position: fixed;
+        bottom: -100%;
+        left: 0;
+        width: 100%;
+        background: #ffffff;
+        border-radius: 24px 24px 0 0;
+        box-shadow: 0 -10px 30px rgba(0,0,0,0.15);
+        z-index: 100005;
+        padding: 24px 20px;
+        transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .payment-options-drawer.active { bottom: 0; }
+    
+    .pay-option {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 10px;
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+    }
+    .pay-option.selected {
+        border-color: var(--primary-color);
+        background: #f0fdf4;
+    }
+
     .chat-drawer-container {
         position: fixed;
         bottom: -100%;
@@ -240,7 +317,7 @@
     <div class="booking-bottom-sheet" style="height: 55%; overflow-y: auto;">
         <div class="sheet-drag-handle"></div>
 
-        <div style="margin-bottom: 16px;">
+        <div style="margin-bottom: 12px;">
             <h2 class="greeting" style="margin:0; font-size:22px; font-weight:800;">Where to?</h2>
         </div>
 
@@ -278,7 +355,42 @@
                 </div>
             </div>
 
-            <div style="display:flex; flex-direction:column; gap:12px; margin-top:18px;">
+            <div class="tier-carousel-container" id="vehicle-tier-carousel">
+                <div class="tier-card active" data-multiplier="1.0" data-tier="auto">
+                    <img src="https://img.icons8.com/color/96/000000/auto-rickshaw.png" alt="Auto">
+                    <h4>Kerala Auto</h4>
+                    <span>3 min away</span>
+                    <div class="tier-price" id="price-auto">₹0</div>
+                </div>
+                <div class="tier-card" data-multiplier="1.3" data-tier="mini">
+                    <img src="https://img.icons8.com/color/96/000000/hatchback.png" alt="Mini">
+                    <h4>Kerala Mini</h4>
+                    <span>2 min away</span>
+                    <div class="tier-price" id="price-mini">₹0</div>
+                </div>
+                <div class="tier-card" data-multiplier="1.6" data-tier="sedan">
+                    <img src="https://img.icons8.com/color/96/000000/car.png" alt="Sedan">
+                    <h4>Kerala Sedan</h4>
+                    <span>5 min away</span>
+                    <div class="tier-price" id="price-sedan">₹0</div>
+                </div>
+                <div class="tier-card" data-multiplier="2.1" data-tier="suv">
+                    <img src="https://img.icons8.com/color/96/000000/suv.png" alt="SUV">
+                    <h4>Kerala SUV</h4>
+                    <span>4 min away</span>
+                    <div class="tier-price" id="price-suv">₹0</div>
+                </div>
+            </div>
+
+            <div class="payment-method-row" id="payment-trigger-box">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <i class="fa-solid fa-wallet" style="color:var(--primary-color); font-size:18px;"></i>
+                    <span id="selected-payment-label" style="font-weight:600; font-size:14px; color:#1f2937;">Cash Payment</span>
+                </div>
+                <i class="fa-solid fa-chevron-right" style="font-size:12px; color:#9ca3af;"></i>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:12px; margin-top:16px;">
                 <div style="display:flex; gap:12px; width:100%;">
                     <button class="btn btn-outline" id="add-stop-node-btn" style="flex:1; min-height:54px; border-radius:14px; font-size:15px; font-weight:700; margin:0;">
                         <i class="fa-solid fa-plus-circle"></i> Add Stop
@@ -302,17 +414,27 @@
             <div class="fare-breakdown-row"><span>Baseline Distance Cost:</span><span id="base-fare-val">₹0.00</span></div>
             <div class="fare-breakdown-row"><span>Intermediate Waiting Charge:</span><span id="wait-fare-val">₹0.00</span></div>
             <div class="fare-breakdown-row"><span>Driver Stay Allowance:</span><span id="stay-fare-val">₹0.00</span></div>
-            
-            <div class="fare-breakdown-row" style="font-weight:800; color:#000; font-size:18px; border-top:1px solid #e2e8f0; padding-top:10px; margin-top:10px;">
-                <span>Upfront Fare:</span>
-                <span id="total-fare-val">₹0.00</span>
-            </div>
         </div>
+    </div>
+</div>
 
-        <div class="service-bubbles" style="margin-top:24px; border-top:1px solid #e2e8f0; padding-top:20px;">
-            <div class="service-bubble"><img src="https://img.icons8.com/color/96/000000/auto-rickshaw.png" alt="Auto"><span>Auto</span></div>
-            <div class="service-bubble"><img src="https://img.icons8.com/color/96/000000/car.png" alt="Taxi"><span>Taxi</span></div>
-            <div class="service-bubble"><img src="https://img.icons8.com/color/96/000000/truck.png" alt="Goods"><span>Goods</span></div>
+<div class="payment-options-drawer" id="payment-options-drawer">
+    <div style="display:flex; justify-content:between; align-items:center; margin-bottom:16px;">
+        <h3 style="margin:0; font-size:16px; font-weight:800;">Choose Payment Method</h3>
+        <button onclick="document.getElementById('payment-options-drawer').classList.remove('active')" style="background:none; border:none; font-size:18px; margin-left:auto; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="pay-option selected" data-method="cash">
+        <i class="fa-solid fa-money-bill-wave" style="color:#16a34a; font-size:20px;"></i>
+        <div style="text-align:left;">
+            <strong style="display:block; font-size:14px;">Cash Payment</strong>
+            <span style="font-size:12px; color:#6b7280;">Pay driver after drop</span>
+        </div>
+    </div>
+    <div class="pay-option" data-method="upi">
+        <i class="fa-solid fa-mobile-screen-button" style="color:#0284c7; font-size:20px;"></i>
+        <div style="text-align:left;">
+            <strong style="display:block; font-size:14px;">UPI Payment (GPay/PhonePe)</strong>
+            <span style="font-size:12px; color:#6b7280;">Instant secure mobile authorization</span>
         </div>
     </div>
 </div>
@@ -349,6 +471,9 @@
 
     var currentLatitude = 9.9816;
     var currentLongitude = 76.2999;
+    var activeRouteLine = null;
+    var simulatedDrivers = [];
+    var baseCalculatedFare = 0;
 
     document.addEventListener("DOMContentLoaded", function() {
         updateNetworkConnectionStatus(); 
@@ -380,9 +505,7 @@
         });
 
         const homeLayout = document.querySelector('.app-home-layout');
-        if (homeLayout) {
-            resizeObserver.observe(homeLayout);
-        }
+        if (homeLayout) { resizeObserver.observe(homeLayout); }
         
         const chatToggle = document.getElementById("chat-toggle-btn");
         if(chatToggle) {
@@ -400,15 +523,76 @@
 
         var userMarker = L.marker([currentLatitude, currentLongitude], {icon: userDotIcon}).addTo(map);
 
+        // ==========================================================================
+        // ⚡ REGION 1: REAL-TIME DRIVER SIMULATION PLOT ENGINE
+        // ==========================================================================
+        function seedNearbyDrivers(lat, lng) {
+            simulatedDrivers.forEach(d => map.removeLayer(d.marker));
+            simulatedDrivers = [];
+
+            const driverIconHtml = `
+                <div style="background:#064e3b; width:28px; height:28px; border-radius:50%; border:2px solid white; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.3); transition: transform 0.5s linear;">
+                    <i class="fa-solid fa-car" style="color:white; font-size:12px;"></i>
+                </div>`;
+            
+            const cabIcon = L.divIcon({ className: 'cab-marker-node', html: driverIconHtml, iconSize: [28, 28] });
+
+            for(let i = 0; i < 4; i++) {
+                let dLat = lat + (Math.random() - 0.5) * 0.015;
+                let dLng = lng + (Math.random() - 0.5) * 0.015;
+                let marker = L.marker([dLat, dLng], { icon: cabIcon }).addTo(map);
+                simulatedDrivers.push({ marker: marker, lat: dLat, lng: dLng });
+            }
+        }
+
+        setInterval(() => {
+            simulatedDrivers.forEach(d => {
+                d.lat += (Math.random() - 0.5) * 0.001;
+                d.lng += (Math.random() - 0.5) * 0.001;
+                d.marker.setLatLng([dLat = d.lat, dLng = d.lng]);
+            });
+        }, 3000);
+
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(function(position) {
                 currentLatitude = position.coords.latitude;
                 currentLongitude = position.coords.longitude;
                 var pos = [currentLatitude, currentLongitude];
-                map.setView(pos, 15);
+                map.setView(pos, 14);
                 userMarker.setLatLng(pos);
                 document.getElementById("start-node").value = "Current Location (" + currentLatitude.toFixed(4) + ", " + currentLongitude.toFixed(4) + ")";
+                seedNearbyDrivers(currentLatitude, currentLongitude);
             });
+        }
+
+        // ==========================================================================
+        // ⚡ REGION 2: OPENSTREETMAP OSRM ROAD-LINE PLOT CALCULATOR
+        // ==========================================================================
+        async function fetchOmsRoutePolyline(waypoints) {
+            if (activeRouteLine) { map.removeLayer(activeRouteLine); }
+            
+            const coordinateString = waypoints.map(w => `${w[1]},${w[0]}`).join(';');
+            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordinateString}?overview=full&geometries=geojson`;
+
+            try {
+                const response = await fetch(osrmUrl);
+                const data = await response.json();
+
+                if (data.code === 'Ok' && data.routes.length > 0) {
+                    const routeGeoJson = data.routes[0].geometry;
+                    const preciseDistanceKm = data.routes[0].distance / 1000;
+
+                    activeRouteLine = L.geoJSON(routeGeoJson, {
+                        style: { color: '#0284c7', weight: 5, opacity: 0.8 }
+                    }).addTo(map);
+
+                    map.fitBounds(activeRouteLine.getBounds(), { padding: [30, 30] });
+                    return preciseDistanceKm;
+                }
+            } catch (err) {
+                console.warn("OSRM error, falling back to straight mathematical grid paths", err);
+            }
+            return null;
         }
 
         const addStopBtn = document.getElementById("add-stop-node-btn");
@@ -434,33 +618,97 @@
         const farePanel = document.getElementById("fare-summary-panel");
 
         if(calculateFareBtn && farePanel) {
-            calculateFareBtn.addEventListener("click", function() {
+            calculateFareBtn.addEventListener("click", async function() {
                 const targetDest = document.getElementById("end-node").value.trim();
                 if(!targetDest) return alert("Please specify your final target drop location.");
 
-                const baseDistanceKm = 12.4 + (stopsWrapper.children.length * 4.8);
+                // Mock geographic route array mapping coordinates for line plot mapping
+                let pathPoints = [[currentLatitude, currentLongitude]];
+                const totalIntermediates = document.querySelectorAll(".intermediate-stop-input").length;
+                for(let i=0; i < totalIntermediates; i++){
+                    pathPoints.push([currentLatitude + (i+1)*0.012, currentLongitude + (i+1)*0.012]);
+                }
+                pathPoints.push([currentLatitude + (totalIntermediates+1)*0.025, currentLongitude + (totalIntermediates+1)*0.025]);
+
+                let calculatedDistance = await fetchOmsRoutePolyline(pathPoints);
+                if (!calculatedDistance) {
+                    calculatedDistance = 12.4 + (stopsWrapper.children.length * 4.8);
+                }
+
                 const waitHours = parseInt(document.getElementById("pricing-wait-select").value) || 0;
                 const stayDays = parseInt(document.getElementById("pricing-stay-select").value) || 0;
 
-                const baseFare = 150 + (baseDistanceKm * 14); 
+                const baseFare = 150 + (calculatedDistance * 14); 
                 const waitFareValue = waitHours * 100;       
                 const stayFareValue = stayDays * 1000;      
-                const totalCost = baseFare + waitFareValue + stayFareValue;
+                baseCalculatedFare = baseFare + waitFareValue + stayFareValue;
 
-                document.getElementById("rendered-distance").textContent = baseDistanceKm.toFixed(2) + " km";
+                document.getElementById("rendered-distance").textContent = calculatedDistance.toFixed(2) + " km";
                 document.getElementById("base-fare-val").textContent = "₹" + baseFare.toFixed(2);
                 document.getElementById("wait-fare-val").textContent = "₹" + waitFareValue.toFixed(2);
                 document.getElementById("stay-fare-val").textContent = "₹" + stayFareValue.toFixed(2);
-                document.getElementById("total-fare-val").textContent = "₹" + totalCost.toFixed(2);
 
+                updateTierPrices(baseCalculatedFare);
                 farePanel.style.display = "block";
             });
         }
 
+        // ==========================================================================
+        // ⚡ REGION 3: DYNAMIC VEHICLE CAROUSEL MULTIPLIER CONTROLLER
+        // ==========================================================================
+        function updateTierPrices(base) {
+            document.querySelectorAll(".tier-card").forEach(card => {
+                const mult = parseFloat(card.getAttribute("data-multiplier"));
+                const totalTierPrice = base * mult;
+                card.querySelector(".tier-price").textContent = "₹" + totalTierPrice.toFixed(0);
+            });
+            
+            const selected = document.querySelector(".tier-card.active");
+            if (selected) {
+                const finalVal = base * parseFloat(selected.getAttribute("data-multiplier"));
+                document.getElementById("main-book-ride-execution-btn").innerHTML = `<i class="fa-solid fa-car-tunnel"></i> Book ${selected.querySelector("h4").textContent} (₹${finalVal.toFixed(0)})`;
+            }
+        }
+
+        document.querySelectorAll(".tier-card").forEach(card => {
+            card.addEventListener("click", function() {
+                document.querySelectorAll(".tier-card").forEach(c => c.classList.remove("active"));
+                this.classList.add("active");
+                if(baseCalculatedFare > 0) { updateTierPrices(baseCalculatedFare); }
+            });
+        });
+
+        // ==========================================================================
+        // ⚡ REGION 4: INTERACTIVE UPI GATEWAY SIMULATOR
+        // ==========================================================================
+        const payTriggerBox = document.getElementById("payment-trigger-box");
+        const payDrawer = document.getElementById("payment-options-drawer");
+        
+        if(payTriggerBox && payDrawer) {
+            payTriggerBox.addEventListener("click", function() { payDrawer.classList.add("active"); });
+        }
+
+        document.querySelectorAll(".pay-option").forEach(option => {
+            option.addEventListener("click", function() {
+                document.querySelectorAll(".pay-option").forEach(o => o.classList.remove("selected"));
+                this.classList.add("selected");
+                document.getElementById("selected-payment-label").textContent = this.querySelector("strong").textContent;
+                payDrawer.classList.remove("active");
+            });
+        });
+
         const bookRideActionBtn = document.getElementById("main-book-ride-execution-btn");
         if(bookRideActionBtn) {
             bookRideActionBtn.addEventListener("click", function() {
-                alert("🚖 Booking Request Dispatched!\nSearching for the nearest active KeralaRide driver matches along your configured stop paths...");
+                const paymentMethod = document.querySelector(".pay-option.selected").getAttribute("data-method");
+                const activeVehicleName = document.querySelector(".tier-card.active h4").textContent;
+
+                if (paymentMethod === 'upi') {
+                    const upiString = prompt("💳 Enter UPI Reference ID or Number to authorize transacting limits safely:", "9876543210@upi");
+                    if (!upiString) return alert("Authorization interrupted. Booking request halted.");
+                }
+
+                alert(`🚖 Booking Dispatched via ${paymentMethod.toUpperCase()}!\nProcessing dispatch allocations for your nearby ${activeVehicleName} route maps...`);
             });
         }
 
