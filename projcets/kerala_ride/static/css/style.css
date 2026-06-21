@@ -624,7 +624,7 @@ footer {
 
 .direct-messenger-input {
     flex: 1;
-    min-height: 54px !important; /* Perfect pixel scale configuration symmetry matches large layout inputs */
+    min-height: 54px !important; 
     font-size: 16px !important;
     padding: 12px 18px;
     border-radius: 14px !important;
