@@ -61,11 +61,11 @@
     }
 
     /* ==========================================================================
-       🚨 FLOATING SOS BUTTON STYLING
+       🚨 FLOATING SOS & CHAT OVERLAYS
        ========================================================================== */
     .floating-sos-trigger {
         position: absolute;
-        top: 20px;
+        top: 60px;
         right: 20px;
         width: 56px;
         height: 56px;
@@ -83,16 +83,11 @@
         transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
-    .floating-sos-trigger:active {
-        transform: scale(0.9);
-    }
+    .floating-sos-trigger:active { transform: scale(0.9); }
 
-    /* ==========================================================================
-       💬 LIVE FLOATING CHAT PANEL STYLING
-       ========================================================================== */
     .floating-chat-toggle {
         position: absolute;
-        top: 90px;
+        top: 130px;
         right: 20px;
         width: 50px;
         height: 50px;
@@ -107,6 +102,59 @@
         justify-content: center;
         font-size: 20px;
         cursor: pointer;
+    }
+
+    /* ==========================================================================
+       📶 PWA DISCONNECTED NETWORK BANNER
+       ========================================================================== */
+    .offline-status-banner {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        background-color: #7f1d1d;
+        color: #fef2f2;
+        text-align: center;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        z-index: 999999;
+        display: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+
+    /* ==========================================================================
+       📦 FARE PREVIEW & STOPS INPUT SYSTEM
+       ========================================================================== */
+    .stop-input-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .remove-stop-btn {
+        background: transparent;
+        border: none;
+        color: var(--accent-danger, #dc2626);
+        cursor: pointer;
+        padding: 8px;
+    }
+
+    .fare-calculator-sheet {
+        margin-top: 15px;
+        background-color: #f8fafc;
+        border-radius: var(--radius-md, 12px);
+        padding: 16px;
+        border: 1px solid var(--border-color, #e2e8f0);
+    }
+
+    .fare-breakdown-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+        margin-bottom: 6px;
+        color: var(--text-muted, #4b5563);
     }
 
     .chat-drawer-container {
@@ -124,9 +172,7 @@
         flex-direction: column;
     }
 
-    .chat-drawer-container.active {
-        bottom: 0;
-    }
+    .chat-drawer-container.active { bottom: 0; }
 
     .chat-drawer-header {
         padding: 16px 20px;
@@ -182,12 +228,10 @@
         0% { transform: scale(0.5); opacity: 0; }
         100% { transform: scale(1); opacity: 1; }
     }
-
     @keyframes typing {
         from { width: 0 }
         to { width: 100% }
     }
-
     @keyframes blink-caret {
         from, to { border-color: transparent }
         50% { border-color: var(--accent-amber, #d97706); }
@@ -196,6 +240,10 @@
 {% endblock %}
 
 {% block content %}
+<div id="offline-network-banner" class="offline-status-banner">
+    <i class="fa-solid fa-cloud-bolt-sun"></i> Network Connection Disrupted. KeralaRide caching active routing loops offline...
+</div>
+
 <div id="splash-screen" class="splash-screen">
     <div class="splash-content">
         <img src="/static/logo.png" alt="KeralaRide Logo" class="splash-logo" onerror="this.style.display='none'">
@@ -214,61 +262,69 @@
         <i class="fa-solid fa-comment-dots"></i>
     </button>
 
-    <div id="home-live-map" style="position: absolute; top: 0; left: 0; width: 100%; height: 60%; z-index: 1;"></div>
+    <div id="home-live-map" style="position: absolute; top: 0; left: 0; width: 100%; height: 50%; z-index: 1;"></div>
 
-    <div class="booking-bottom-sheet">
+    <div class="booking-bottom-sheet" style="height: 50%; overflow-y: auto;">
         <div class="sheet-drag-handle"></div>
 
-        <h2 class="greeting">
-            {% if current_user.is_authenticated %}
-                Where to, {{ current_user.name.split()[0] }}?
-            {% else %}
-                Where are we going?
-            {% endif %}
-        </h2>
-
-        <div class="service-bubbles">
-            <a href="{{ url_for('customer.dashboard') }}" class="service-bubble">
-                <img src="https://img.icons8.com/color/96/000000/auto-rickshaw.png" alt="Auto">
-                <span>Auto</span>
-            </a>
-            <a href="{{ url_for('customer.dashboard') }}" class="service-bubble">
-                <img src="https://img.icons8.com/color/96/000000/car.png" alt="Car">
-                <span>Taxi</span>
-            </a>
-            <a href="{{ url_for('customer.dashboard') }}" class="service-bubble">
-                <img src="https://img.icons8.com/color/96/000000/truck.png" alt="Goods">
-                <span>Goods</span>
-            </a>
-            <a href="{{ url_for('main.offers') }}" class="service-bubble promo-bubble">
-                <i class="fa-solid fa-tags"></i>
-                <span>Offers</span>
-            </a>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h2 class="greeting" style="margin:0; font-size:20px;">Where are we going?</h2>
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('more-menu-sheet').classList.add('active')" style="min-height:32px;">
+                <i class="fa-solid fa-user-shield"></i> Contacts
+            </button>
         </div>
 
-        <div class="where-to-box" onclick="window.location.href='{{ url_for('customer.dashboard') }}'">
-            <div class="search-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
-            <div class="search-text">Search destination...</div>
-            <div class="time-picker">
-                <i class="fa-solid fa-clock"></i> Now
+        <div class="search-routing-container" style="margin-bottom: 16px;">
+            <div class="stop-input-row">
+                <i class="fa-solid fa-circle-dot" style="color: var(--accent-blue);"></i>
+                <input type="text" id="start-node" class="form-control" placeholder="Starting position (GPS Lock active)" style="min-height:40px; font-size:14px;" readonly>
+            </div>
+            
+            <div id="dynamic-stops-wrapper">
+                </div>
+
+            <div class="stop-input-row">
+                <i class="fa-solid fa-location-pin" style="color: var(--accent-danger);"></i>
+                <input type="text" id="end-node" class="form-control" placeholder="Enter target destination" style="min-height:40px; font-size:14px;">
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn btn-outline btn-sm" id="add-stop-node-btn" style="flex:1; min-height:36px; font-size:12px;">
+                    <i class="fa-solid fa-plus-circle"></i> Add Multi-Stop
+                </button>
+                <button class="btn btn-primary btn-sm" id="calculate-fare-btn" style="flex:1; min-height:36px; font-size:12px;">
+                    <i class="fa-solid fa-calculator"></i> Estimate Upfront Price
+                </button>
             </div>
         </div>
 
-        <div class="saved-places">
-            <div class="place-item" onclick="window.location.href='{{ url_for('customer.dashboard') }}'">
-                <div class="place-icon home"><i class="fa-solid fa-house"></i></div>
-                <div class="place-details">
-                    <strong>Home</strong>
-                    <p>Tap to set address</p>
-                </div>
+        <div id="fare-summary-panel" class="fare-calculator-sheet" style="display:none;">
+            <div class="fare-breakdown-row" style="font-weight:700; color:var(--primary-color); border-bottom:1px dashed #cbd5e1; padding-bottom:4px; margin-bottom:8px;">
+                <span>Estimated Distance:</span>
+                <span id="rendered-distance">0.00 km</span>
             </div>
-            <div class="place-item" onclick="window.location.href='{{ url_for('customer.dashboard') }}'">
-                <div class="place-icon work"><i class="fa-solid fa-briefcase"></i></div>
-                <div class="place-details">
-                    <strong>Work</strong>
-                    <p>Tap to set address</p>
-                </div>
+            <div class="fare-breakdown-row">
+                <span>Base Transit fare:</span>
+                <span id="base-fare-val">₹0.00</span>
             </div>
+            <div class="fare-breakdown-row">
+                <span>Accumulated Stop Wait Time Charges (<span id="wait-hrs-display">0</span> hrs):</span>
+                <span id="wait-fare-val">₹0.00</span>
+            </div>
+            <div class="fare-breakdown-row">
+                <span>Overnight Stay Halt Allowances (<span id="overnight-days-display">0</span> nights):</span>
+                <span id="stay-fare-val">₹0.00</span>
+            </div>
+            <div class="fare-breakdown-row" style="font-weight:800; color:#000; font-size:16px; border-top:1px solid #e2e8f0; padding-top:6px; margin-top:6px;">
+                <span>Total Upfront Estimate:</span>
+                <span id="total-fare-val">₹0.00</span>
+            </div>
+        </div>
+
+        <div class="service-bubbles" style="margin-top:15px;">
+            <div class="service-bubble"><img src="https://img.icons8.com/color/96/000000/auto-rickshaw.png" alt="Auto"><span>Auto</span></div>
+            <div class="service-bubble"><img src="https://img.icons8.com/color/96/000000/car.png" alt="Taxi"><span>Taxi</span></div>
+            <div class="service-bubble"><img src="https://img.icons8.com/color/96/000000/truck.png" alt="Goods"><span>Goods</span></div>
         </div>
     </div>
 </div>
@@ -282,9 +338,7 @@
         <button onclick="document.getElementById('chat-drawer').classList.remove('active')" style="background:#f1f5f9; border:none; width:32px; height:32px; border-radius:50%; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="chat-messages-container" id="chat-msg-box">
-        <div class="chat-bubble received">
-            Welcome to KeralaRide Connect Support. How can we assist you with your booking path or cargo route assignment right now?
-        </div>
+        <div class="chat-bubble received">Welcome to KeralaRide Connect Support. How can we assist you with your route configuration?</div>
     </div>
     <div class="chat-input-area">
         <input type="text" class="form-control" id="chat-input-field" placeholder="Type a message secure..." style="flex:1; min-height:44px; margin:0;">
@@ -308,12 +362,26 @@
         }, 2600);
     });
 
-    // Global variable references for location persistence context layers
+    // 📶 PROGRESSIVE PWA OFFLINE TRACKING ENGINE LISTENER HOOKS
+    window.addEventListener('online', updateNetworkConnectionStatus);
+    window.addEventListener('offline', updateNetworkConnectionStatus);
+
+    function updateNetworkConnectionStatus() {
+        const offlineBanner = document.getElementById("offline-network-banner");
+        if(navigator.onLine) {
+            offlineBanner.style.display = "none";
+        } else {
+            offlineBanner.style.display = "block";
+        }
+    }
+
     var currentLatitude = 9.9816;
     var currentLongitude = 76.2999;
 
-    // 🗺️ Real Dynamic Map Generation
+    // 🗺️ Map Initialization Setup
     document.addEventListener("DOMContentLoaded", function() {
+        updateNetworkConnectionStatus(); // Run immediate offline diagnostics scan check
+
         var map = L.map('home-live-map', {
             zoomControl: false 
         }).setView([currentLatitude, currentLongitude], 14);
@@ -338,35 +406,99 @@
                 var pos = [currentLatitude, currentLongitude];
                 map.setView(pos, 15);
                 userMarker.setLatLng(pos);
-            }, function() {
-                console.log("GPS access unavailable. Defaulting map perspective.");
+                document.getElementById("start-node").value = "Current Location (" + currentLatitude.toFixed(4) + ", " + currentLongitude.toFixed(4) + ")";
             });
         }
 
         // ==========================================================================
-        // 🚨 WEBSOCKET EVENT LISTENERS (SOS & CHAT RUNNER ENGINE HANDLERS)
+        // 🛠️ MULTI-STOP DOM CONFIGURATION AND DYNAMIC INJECTION TRACKERS
         // ==========================================================================
-        
-        // Safety execution hook checks for initialized global Socket connection instances
-        const globalSocket = (typeof socket !== 'undefined') ? socket : (window.socket ? window.socket : null);
+        const addStopBtn = document.getElementById("add-stop-node-btn");
+        const stopsWrapper = document.getElementById("dynamic-stops-wrapper");
 
-        // Emergency SOS payload dispatcher handler logic execution framework
+        if(addStopBtn && stopsWrapper) {
+            addStopBtn.addEventListener("click", function() {
+                const stopCount = stopsWrapper.children.length + 1;
+                if(stopCount > 4) {
+                    alert("Maximum intermediate path stop allocations capped at 4.");
+                    return;
+                }
+                
+                const stopRow = document.createElement("div");
+                stopRow.className = "stop-input-row animate-stop";
+                stopRow.innerHTML = `
+                    <i class="fa-solid fa-diamond" style="color: var(--accent-amber); font-size:12px;"></i>
+                    <input type="text" class="form-control intermediate-stop-input" placeholder="Stop ${stopCount} Destination" style="min-height:40px; font-size:14px;">
+                    <button class="remove-stop-btn" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash-can"></i></button>
+                `;
+                stopsWrapper.appendChild(stopRow);
+            });
+        }
+
+        // ==========================================================================
+        // 🧮 SMART FARE CALCULATOR METRICS PARSER
+        // ==========================================================================
+        const calculateFareBtn = document.getElementById("calculate-fare-btn");
+        const farePanel = document.getElementById("fare-summary-panel");
+
+        if(calculateFareBtn && farePanel) {
+            calculateFareBtn.addEventListener("click", function() {
+                const targetDest = document.getElementById("end-node").value.trim();
+                if(!targetDest) {
+                    alert("Please specify a target destination row to compute rates.");
+                    return;
+                }
+
+                // Simulate routing distance calculation array sequences safely offline
+                const baseDistanceKm = 12.4 + (stopsWrapper.children.length * 5.2);
+                
+                // Prompt user configuration values for waiting/stay parameters
+                let waitHours = parseInt(prompt("Enter total planned intermediate stop wait time duration (Hours):", "0")) || 0;
+                let stayDays = parseInt(prompt("Enter total driver overnight outstation stays needed (Nights):", "0")) || 0;
+
+                // Execute absolute fallback bounds checking validation
+                if(waitHours < 0) waitHours = 0;
+                if(stayDays < 0) stayDays = 0;
+
+                // Compute financial projections based on user parameters input
+                const baseFare = 150 + (baseDistanceKm * 15); // Standard baseline parameter formula metric 
+                const waitFareValue = waitHours * 100;       // ₹100 per hour limit rate rule configuration 
+                const stayFareValue = stayDays * 1000;      // ₹1000 per outstation overnight night stay limit rule
+                const totalCost = baseFare + waitFareValue + stayFareValue;
+
+                // Write calculations to active front-end nodes display elements
+                document.getElementById("rendered-distance").textContent = baseDistanceKm.toFixed(2) + " km";
+                document.getElementById("base-fare-val").textContent = "₹" + baseFare.toFixed(2);
+                document.getElementById("wait-hrs-display").textContent = waitHours;
+                document.getElementById("wait-fare-val").textContent = "₹" + waitFareValue.toFixed(2);
+                document.getElementById("overnight-days-display").textContent = stayDays;
+                document.getElementById("stay-fare-val").textContent = "₹" + stayFareValue.toFixed(2);
+                document.getElementById("total-fare-val").textContent = "₹" + totalCost.toFixed(2);
+
+                farePanel.style.display = "block";
+            });
+        }
+
+        // ==========================================================================
+        // 🚨 SOS & MESSENGER CORE SYSTEM ROUTERS
+        // ==========================================================================
+        const globalSocket = (typeof socket !== 'undefined') ? socket : (window.socket ? window.socket : null);
         const sosButton = document.getElementById("sos-btn");
+        
         if(sosButton) {
             sosButton.addEventListener("click", function() {
-                const confirmation = confirm("CRITICAL ACCELERATION ALERT:\nDo you need to broadcast an SOS signal with your tracking parameters to the Central Logistics Hub monitoring consoles?");
+                const confirmation = confirm("CRITICAL ACCELERATION ALERT:\nDo you need to broadcast an SOS signal with your tracking parameters?");
                 if(confirmation && globalSocket) {
                     globalSocket.emit("trigger_sos", {
                         lat: currentLatitude,
                         lng: currentLongitude,
                         timestamp: new Date().toISOString()
                     });
-                    alert("Emergency system loop initialized. Signals routed out successfully.");
+                    alert("Emergency loop execution active. Signals dispatched successfully.");
                 }
             });
         }
 
-        // Real-Time Message UI Builder logic routines pipeline hooks
         const chatToggleBtn = document.getElementById("chat-toggle-btn");
         const chatDrawer = document.getElementById("chat-drawer");
         const chatSendBtn = document.getElementById("chat-send-btn");
@@ -384,13 +516,11 @@
             const rawMessageText = chatInputField.value.trim();
             if(rawMessageText === "") return;
 
-            // Render message immediately to client display block interface context
             const outgoingBubble = document.createElement("div");
             outgoingBubble.className = "chat-bubble sent";
             outgoingBubble.textContent = rawMessageText;
             chatMsgBox.appendChild(outgoingBubble);
             
-            // Safe push parameters array stack through Socket pipeline layer instances
             if(globalSocket) {
                 globalSocket.emit("send_message", {
                     text: rawMessageText,
@@ -409,7 +539,6 @@
             });
         }
 
-        // Catch incoming background thread synchronization hooks safely
         if(globalSocket) {
             globalSocket.on("receive_message", function(payload) {
                 const incomingBubble = document.createElement("div");
