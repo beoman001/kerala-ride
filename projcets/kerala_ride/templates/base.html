@@ -138,9 +138,9 @@
                 display: none !important; 
             }
             
-            /* 🚨 Override Old Hamburger (Hide it to use Bottom Nav instead) */
+            /* ⚡ FIX: Restored mobile support for header interaction triggers */
             .nav-hamburger {
-                display: none !important;
+                display: block !important;
             }
 
             /* 📱 BOTTOM NAVIGATION STYLING */
@@ -308,14 +308,14 @@
     </nav>
 
     <div id="more-menu-sheet" class="more-menu-sheet">
-        <div class="menu-header">
-            <h3>KeralaRide Connect</h3>
-            <button onclick="document.getElementById('more-menu-sheet').classList.remove('active')"><i class="fa-solid fa-xmark"></i></button>
+        <div class="menu-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0; font-size: 18px;">KeralaRide Options</h3>
+            <button style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted);" onclick="document.getElementById('more-menu-sheet').classList.remove('active')"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <a href="{{ url_for('main.about') }}" class="menu-item"><i class="fa-solid fa-circle-info"></i> About Us</a>
-        <a href="{{ url_for('main.contact') }}" class="menu-item"><i class="fa-solid fa-shield-halved"></i> Support & Safety</a>
-        <a href="{{ url_for('main.offers') }}" class="menu-item"><i class="fa-solid fa-tag"></i> Promos & Discounts</a>
-        <a href="{{ url_for('auth.driver_register') }}" class="menu-item"><i class="fa-solid fa-steering-wheel"></i> Drive with Us</a>
+        <a href="{{ url_for('main.about') }}" class="menu-item" style="display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border-color); font-weight: 500;"><i class="fa-solid fa-circle-info" style="color: var(--primary-color); font-size: 18px;"></i> About Us</a>
+        <a href="{{ url_for('main.contact') }}" class="menu-item" style="display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border-color); font-weight: 500;"><i class="fa-solid fa-shield-halved" style="color: var(--accent-success); font-size: 18px;"></i> Support & Safety</a>
+        <a href="{{ url_for('main.offers') }}" class="menu-item" style="display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border-color); font-weight: 500;"><i class="fa-solid fa-tag" style="color: var(--accent-amber); font-size: 18px;"></i> Promos & Discounts</a>
+        <a href="{{ url_for('auth.register') }}?role=driver" class="menu-item" style="display: flex; align-items: center; gap: 12px; padding: 14px 0; font-weight: 500;"><i class="fa-solid fa-car" style="color: var(--accent-blue); font-size: 18px;"></i> Drive with Us</a>
     </div>
 
     <footer>
@@ -334,7 +334,7 @@
                         <li><a href="{{ url_for('main.about') }}">About Us</a></li>
                         <li><a href="{{ url_for('main.contact') }}">Contact Support</a></li>
                         <li><a href="{{ url_for('main.offers') }}">Special Offers</a></li>
-                        <li><a href="{{ url_for('auth.driver_register') }}">Partner with Us</a></li>
+                        <li><a href="{{ url_for('auth.register') }}?role=driver">Partner with Us</a></li>
                     </ul>
                 </div>
                 <div class="footer-col">
@@ -374,7 +374,6 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                // Points to the root route configured in your Flask backend
                 navigator.serviceWorker.register('/service-worker.js').then(function(registration) {
                     console.log('PWA ServiceWorker registration successful with scope: ', registration.scope);
                 }, function(err) {
