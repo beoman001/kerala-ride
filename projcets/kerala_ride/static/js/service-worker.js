@@ -1,4 +1,4 @@
-const CACHE_NAME = 'keralaride-v2'; // Bumped cache version to force client worker initialization update loops
+const CACHE_NAME = 'keralaride-v3'; // Bumped cache version to force client update activation loops
 
 // ⚡ Structural assets to bundle and cache immediately on first network boot configuration
 const ASSETS_TO_CACHE = [
@@ -65,10 +65,12 @@ self.addEventListener('fetch', (event) => {
 
                 // If it's a structural asset style or an OpenStreetMap layout tile asset, save a proxy copy safely
                 const isStaticAsset = url.pathname.startsWith('/static/');
-                const isLeafletAsset = url.hostname.includes('unpkg.com') || url.hostname.includes('openstreetmap.org');
+                const isLeafletCDNAsset = url.hostname.includes('unpkg.com');
+                const isMapTileAsset = url.hostname.includes('openstreetmap.org') || url.pathname.endsWith('.png');
 
-                if (isStaticAsset || isLeafletAsset) {
+                if (isStaticAsset || isLeafletCDNAsset || isMapTileAsset) {
                     return caches.open(CACHE_NAME).then((cache) => {
+                        // Dynamically cache runtime resources to speed up future map loading states
                         cache.put(event.request, networkResponse.clone());
                         return networkResponse;
                     });
