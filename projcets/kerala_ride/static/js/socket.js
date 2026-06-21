@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     // ==========================================================================
-    // ⚡ REGION 2: REAL PRODUCTION USER BOOKING & NATIVE UPI ROUTER
+    // ⚡ REGION 2: REAL PRODUCTION USER BOOKING & BOOKING PAGE REDIRECT
     // ==========================================================================
     const mainBookRideBtn = document.getElementById("main-book-ride-execution-btn");
     if (mainBookRideBtn) {
@@ -53,13 +53,13 @@ document.addEventListener("DOMContentLoaded", function() {
             
             // Pull real distance numbers from our text metrics block
             const distanceText = document.getElementById("rendered-distance").textContent;
-            if (parseFloat(distanceText) === 0) return alert("Please calculate your route fare details before checking out.");
+            if (parseFloat(distanceText) === 0) return alert("Please calculate your route fare details before proceeding.");
 
             mainBookRideBtn.disabled = true;
-            mainBookRideBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Initializing Dispatch Securely...`;
+            mainBookRideBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Preparing Booking...`;
 
             try {
-                // Fire network payload directly to our new live backend controller endpoint
+                // Fire network payload directly to our live backend controller endpoint to draft the trip
                 const response = await fetch('/api/trip/create', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -75,22 +75,19 @@ document.addEventListener("DOMContentLoaded", function() {
                 const tripResult = await response.json();
 
                 if (tripResult.status === 'success') {
-                    // 💳 IF USER SELECTED UPI -> INTERCEPT AND AUTO-TRIGGER MOBILE WALLET
-                    if (tripResult.upi_intent_uri) {
-                        alert("🔗 Connecting to Bank Gateway... Directing securely to GPay/PhonePe.");
-                        window.location.href = tripResult.upi_intent_uri; // Triggers system intent loop cleanly
-                    } else {
-                        alert(`🚖 Dispatch Initialized Successfully via CASH!\nTracking ID: ${tripResult.transaction_id}`);
-                    }
+                    // 🚀 REDIRECT TO PASSENGER BOOKING PAGE
+                    // Appends the transaction ID so your backend knows which draft booking to display for confirmation
+                    window.location.href = `/booking?txn_id=${tripResult.transaction_id}`; 
                 } else {
                     alert(`Error: ${tripResult.message}`);
+                    mainBookRideBtn.disabled = false;
+                    mainBookRideBtn.innerHTML = `<i class="fa-solid fa-car-tunnel"></i> Book Ride Now`;
                 }
             } catch (err) {
                 console.error("Booking transmission sequence failure:", err);
-                alert("Network timeout. Could not establish communication with dispatch towers.");
-            } finally {
+                alert("Network timeout. Could not establish communication with dispatch servers.");
                 mainBookRideBtn.disabled = false;
-                if (selectedTierCard) updateTierPrices(baseCalculatedFare);
+                mainBookRideBtn.innerHTML = `<i class="fa-solid fa-car-tunnel"></i> Book Ride Now`;
             }
         });
     }
@@ -140,6 +137,7 @@ document.addEventListener("DOMContentLoaded", function() {
             console.log("New booking dispatch received:", data);
             
             // Create a sliding booking alert box at the bottom right
+            // Remove existing alert if present
             const oldAlert = document.getElementById('booking-dispatch-popup');
             if (oldAlert) oldAlert.remove();
 
@@ -193,6 +191,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (adminDashboard) {
             console.log("Emergency SOS Alert received:", data);
             
+            // Create a top flashing emergency alert banner
             const sosBanner = document.createElement('div');
             sosBanner.className = 'alert alert-danger';
             sosBanner.style.position = 'fixed';
@@ -219,6 +218,7 @@ document.addEventListener("DOMContentLoaded", function() {
             
             document.body.appendChild(sosBanner);
             
+            // Handle alert dismiss
             sosBanner.querySelector('.alert-close').addEventListener('click', function() {
                 sosBanner.remove();
             });
