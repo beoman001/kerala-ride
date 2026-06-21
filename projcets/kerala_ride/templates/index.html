@@ -1,136 +1,170 @@
 {% extends "base.html" %}
 
-{% block title %}KeralaRide Connect - Kerala's Premier Transport Marketplace{% endblock %}
+{% block title %}KeralaRide - Book a Ride{% endblock %}
+
+{% block head %}
+<style>
+    /* ==========================================================================
+       🚀 SPLASH SCREEN ANIMATION
+       ========================================================================== */
+    .splash-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: var(--primary-color, #064e3b);
+        z-index: 9999999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        transition: opacity 0.6s ease-out, visibility 0.6s ease-out;
+    }
+
+    .splash-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .splash-logo {
+        height: 90px;
+        margin-bottom: 20px;
+        animation: popIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        opacity: 0;
+    }
+
+    /* The Typewriter Container */
+    .typewriter-container {
+        display: inline-block;
+    }
+
+    .typing-text {
+        color: #ffffff;
+        font-size: 32px;
+        font-weight: 800;
+        overflow: hidden; 
+        white-space: nowrap; 
+        margin: 0 auto; 
+        letter-spacing: 1px;
+        border-right: 3px solid var(--accent-amber, #d97706); /* Blinking Cursor */
+        width: 0;
+        /* Animation: typing takes 1.2s, blinking cursor runs infinitely */
+        animation: 
+            typing 1.2s steps(40, end) 0.5s forwards,
+            blink-caret 0.75s step-end infinite;
+    }
+
+    .typing-text span {
+        color: var(--accent-amber, #d97706);
+    }
+
+    @keyframes popIn {
+        0% { transform: scale(0.5); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes typing {
+        from { width: 0 }
+        to { width: 100% }
+    }
+
+    @keyframes blink-caret {
+        from, to { border-color: transparent }
+        50% { border-color: var(--accent-amber, #d97706); }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<!-- Hero Banner -->
-<section class="hero">
-    <div class="container hero-content">
-        <h1 style="color: var(--primary-color);">Reliable Transportation Across <span style="color: var(--accent-amber);">Kerala</span></h1>
-        <p>Seamlessly book passenger rides or transport commercial goods with our verified network of local commercial drivers. Serving all 14 districts with upfront pricing and safety first.</p>
-        
-        <div style="display: flex; justify-content: center; gap: 16px; margin-top: 20px;">
-            <a href="{{ url_for('customer.book') }}" class="btn btn-primary">
-                <i class="fa-solid fa-car"></i> Book a Ride / Cargo
+<div id="splash-screen" class="splash-screen">
+    <div class="splash-content">
+        <img src="/static/logo.png" alt="KeralaRide Logo" class="splash-logo" onerror="this.style.display='none'">
+        <div class="typewriter-container">
+            <h1 class="typing-text">Kerala<span>Ride</span> Connect</h1>
+        </div>
+    </div>
+</div>
+
+<div class="app-home-layout">
+    <div class="home-map-bg">
+        <div class="map-center-marker">
+            <div class="pulse-ring"></div>
+            <i class="fa-solid fa-location-dot"></i>
+        </div>
+    </div>
+
+    <div class="booking-bottom-sheet">
+        <div class="sheet-drag-handle"></div>
+
+        <h2 class="greeting">
+            {% if current_user.is_authenticated %}
+                Where to, {{ current_user.name.split()[0] }}?
+            {% else %}
+                Where are we going?
+            {% endif %}
+        </h2>
+
+        <div class="service-bubbles">
+            <a href="{{ url_for('customer.dashboard') }}" class="service-bubble">
+                <img src="https://img.icons8.com/color/96/000000/auto-rickshaw.png" alt="Auto">
+                <span>Auto</span>
             </a>
-            <a href="{{ url_for('auth.driver_register') }}" class="btn btn-outline">
-                <i class="fa-solid fa-id-card"></i> Join as Driver
+            <a href="{{ url_for('customer.dashboard') }}" class="service-bubble">
+                <img src="https://img.icons8.com/color/96/000000/car.png" alt="Car">
+                <span>Taxi</span>
+            </a>
+            <a href="{{ url_for('customer.dashboard') }}" class="service-bubble">
+                <img src="https://img.icons8.com/color/96/000000/truck.png" alt="Goods">
+                <span>Goods</span>
+            </a>
+            <a href="{{ url_for('main.offers') }}" class="service-bubble promo-bubble">
+                <i class="fa-solid fa-tags"></i>
+                <span>Offers</span>
             </a>
         </div>
-    </div>
-</section>
 
-<!-- Main Services Section -->
-<section class="container" style="padding: 60px 0;">
-    <div class="section-title">
-        <h2>Our Services</h2>
-        <p>Choose the category that fits your transit or cargo logistics needs</p>
-    </div>
-    
-    <div class="hero-options">
-        <!-- Passenger Option -->
-        <div class="option-card">
-            <div class="option-icon">
-                <i class="fa-solid fa-user-group"></i>
+        <div class="where-to-box" onclick="window.location.href='{{ url_for('customer.dashboard') }}'">
+            <div class="search-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+            <div class="search-text">Search destination...</div>
+            <div class="time-picker">
+                <i class="fa-solid fa-clock"></i> Now
             </div>
-            <h3>Book Passenger Rides</h3>
-            <p>Get a quick ride within your district. Options range from affordable Auto Rickshaws and Taxis to spacious Tempo Travellers and Tourist Buses for group journeys.</p>
-            <a href="{{ url_for('customer.book') }}?type=passenger" class="btn btn-outline btn-sm">Request Ride</a>
         </div>
 
-        <!-- Goods Option -->
-        <div class="option-card">
-            <div class="option-icon">
-                <i class="fa-solid fa-truck-ramp-box"></i>
-            </div>
-            <h3>Transport Goods</h3>
-            <p>Need to move merchandise, household luggage, or heavy machinery? Find verified Pickup trucks, Mini Trucks, and Lorry transport options instantly.</p>
-            <a href="{{ url_for('customer.book') }}?type=goods" class="btn btn-outline btn-sm">Dispatch Cargo</a>
-        </div>
-
-        <!-- Driver Option -->
-        <div class="option-card">
-            <div class="option-icon">
-                <i class="fa-solid fa-handshake"></i>
-            </div>
-            <h3>Become a Partner Driver</h3>
-            <p>Are you a yellow-board commercial permit driver in Kerala? Onboard your vehicle, upload documentation, and receive booking notifications directly in your district.</p>
-            <a href="{{ url_for('auth.driver_register') }}" class="btn btn-accent btn-sm">Apply to Drive</a>
-        </div>
-    </div>
-</section>
-
-<!-- Active Promotional Offers -->
-{% if offers %}
-<section style="background-color: #f1f5f9; padding: 60px 0;">
-    <div class="container">
-        <div class="section-title">
-            <h2>Active Promotions</h2>
-            <p>Apply these promo codes during booking to save on your travels and shipments</p>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
-            {% for offer in offers %}
-            <div class="card glass-card" style="border-left: 5px solid var(--accent-amber);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <span style="font-size: 20px; font-weight: 800; color: var(--primary-color);">{{ offer.code }}</span>
-                    <span class="badge badge-approved">{{ offer.discount_percentage }}% Off</span>
+        <div class="saved-places">
+            <div class="place-item" onclick="window.location.href='{{ url_for('customer.dashboard') }}'">
+                <div class="place-icon home"><i class="fa-solid fa-house"></i></div>
+                <div class="place-details">
+                    <strong>Home</strong>
+                    <p>Tap to set address</p>
                 </div>
-                <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 12px;">{{ offer.description }}</p>
-                <p style="font-size: 11px; color: var(--text-muted);">
-                    <i class="fa-regular fa-clock"></i> Valid until: {{ offer.expiry_date.strftime('%d %b %Y') }}
-                </p>
             </div>
-            {% endfor %}
+            <div class="place-item" onclick="window.location.href='{{ url_for('customer.dashboard') }}'">
+                <div class="place-icon work"><i class="fa-solid fa-briefcase"></i></div>
+                <div class="place-details">
+                    <strong>Work</strong>
+                    <p>Tap to set address</p>
+                </div>
+            </div>
         </div>
     </div>
-</section>
-{% endif %}
+</div>
+{% endblock %}
 
-<!-- Safety Highlights Section -->
-<section class="container" style="padding: 80px 0;">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 40px; align-items: center;">
-        <div>
-            <h2 style="font-size: 30px; margin-bottom: 15px;">Safety first, always.</h2>
-            <p style="color: var(--text-muted); margin-bottom: 20px;">We are committed to delivering safe and transparent journeys across Kerala. Every trip on our platform is protected and monitored.</p>
-            
-            <ul style="list-style: none; display: flex; flex-direction: column; gap: 15px;">
-                <li style="display: flex; gap: 12px; align-items: flex-start;">
-                    <span style="color: var(--accent-success); font-size: 18px; margin-top: 3px;"><i class="fa-solid fa-circle-check"></i></span>
-                    <div>
-                        <strong>Manual Document Verification</strong>
-                        <p style="font-size: 13px; color: var(--text-muted);">Administrators review and verify driver licenses, permits, vehicle RC, and insurance before they accept requests.</p>
-                    </div>
-                </li>
-                <li style="display: flex; gap: 12px; align-items: flex-start;">
-                    <span style="color: var(--accent-success); font-size: 18px; margin-top: 3px;"><i class="fa-solid fa-circle-check"></i></span>
-                    <div>
-                        <strong>4-Digit Secure OTP</strong>
-                        <p style="font-size: 13px; color: var(--text-muted);">Trips do not start until you provide the OTP to the driver, securing you from unauthorized matchings.</p>
-                    </div>
-                </li>
-                <li style="display: flex; gap: 12px; align-items: flex-start;">
-                    <span style="color: var(--accent-success); font-size: 18px; margin-top: 3px;"><i class="fa-solid fa-circle-check"></i></span>
-                    <div>
-                        <strong>One-Touch SOS Emergency Button</strong>
-                        <p style="font-size: 13px; color: var(--text-muted);">In case of any emergency, a single click notifies your safety contacts and alerts our 24/7 admin console with coordinates.</p>
-                    </div>
-                </li>
-            </ul>
-        </div>
-        <div style="background-color: var(--primary-color); padding: 40px; border-radius: var(--radius-lg); color: white; box-shadow: var(--shadow-lg);">
-            <h3 style="color: var(--accent-amber); margin-bottom: 15px;">Serving 14 Districts</h3>
-            <p style="font-size: 15px; line-height: 1.7; margin-bottom: 20px;">Whether you need an auto in the city centers of Ernakulam, a tourist bus for Munnar hills in Idukki, or a pickup truck in Kasaragod, we coordinate with local panchayats, municipalities, and corporations to bring verified drivers to your doorstep.</p>
-            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                <span class="badge" style="background-color: rgba(255,255,255,0.15); color: white;">Trivandrum</span>
-                <span class="badge" style="background-color: rgba(255,255,255,0.15); color: white;">Kollam</span>
-                <span class="badge" style="background-color: rgba(255,255,255,0.15); color: white;">Alappuzha</span>
-                <span class="badge" style="background-color: rgba(255,255,255,0.15); color: white;">Kochi</span>
-                <span class="badge" style="background-color: rgba(255,255,255,0.15); color: white;">Thrissur</span>
-                <span class="badge" style="background-color: rgba(255,255,255,0.15); color: white;">Kozhikode</span>
-                <span class="badge" style="background-color: rgba(255,255,255,0.15); color: white;">Kannur</span>
-            </div>
-        </div>
-    </div>
-</section>
+{% block scripts %}
+<script>
+    // 🚀 Splash Screen Logic: Wait for typing animation to finish, then fade out
+    window.addEventListener('load', function() {
+        // Hide splash screen after 2.6 seconds (gives time for typing animation to complete)
+        setTimeout(function() {
+            const splash = document.getElementById('splash-screen');
+            if(splash) {
+                splash.style.opacity = '0';
+                splash.style.visibility = 'hidden';
+            }
+        }, 2600);
+    });
+</script>
 {% endblock %}
