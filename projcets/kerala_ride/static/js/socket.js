@@ -79,11 +79,13 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (tripResult.upi_intent_uri) {
                         // Open UPI app, then push back to dashboard
                         window.location.href = tripResult.upi_intent_uri; 
-                        setTimeout(() => { window.location.href = '/dashboard'; }, 1500);
+                        // ⚡ FIX: Points exactly to the customer dashboard route!
+                        setTimeout(() => { window.location.href = '/customer/dashboard'; }, 1500);
                     } else {
                         // Alert user and push back to dashboard
                         alert(`🚖 Ride Confirmed!\nTracking ID: ${tripResult.transaction_id}`);
-                        window.location.href = '/dashboard'; 
+                        // ⚡ FIX: Points exactly to the customer dashboard route!
+                        window.location.href = '/customer/dashboard'; 
                     }
                 } else {
                     alert(`Error: ${tripResult.message}`);
