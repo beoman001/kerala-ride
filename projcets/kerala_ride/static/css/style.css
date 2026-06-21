@@ -458,10 +458,11 @@ footer {
 /* Fullscreen Map Background */
 .app-home-layout {
     position: relative;
-    height: calc(100vh - 70px); /* Fill screen minus bottom nav */
-    margin: -20px; /* Counteract container padding */
+    height: calc(100dvh - 70px); /* ⚡ Solves UI lag: Uses dynamic viewports to stop layout-thrashing loops */
+    margin: -20px; 
     background-color: #e2e8f0;
     overflow: hidden;
+    transform: translateZ(0);   /* ⚡ Offloads rendering operations directly to hardware GPU cores */
 }
 
 .home-map-bg {
