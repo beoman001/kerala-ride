@@ -130,7 +130,7 @@ def book():
         pickup = request.form.get('pickup', '').strip()
         destination = request.form.get('destination', '').strip()
         
-        # ⚡ FIX: Added robust fallback lookup layer to read the specific variant fields if master field drops blank
+        # Fallback lookup layer to read the specific variant fields if master field drops blank
         vehicle_category = request.form.get('vehicle_category')
         if not vehicle_category:
             if booking_type == 'goods':
@@ -161,7 +161,7 @@ def book():
             except ValueError:
                 print(f"Warning: Failed to parse scheduled time: {scheduled_time_raw}")
 
-        # ⚡ FIX: Better default string assignment prevents database column constraints from flagging null errors
+        # Default string assignment prevents database column constraints from flagging null errors
         if not vehicle_category:
             vehicle_category = "Auto Rickshaw" if booking_type == "passenger" else "Goods Auto"
 
@@ -372,6 +372,11 @@ def estimate_fare():
 def dashboard():
     try:
         user_bookings = Booking.query.filter_by(customer_id=current_user.id).order_by(Booking.id.desc()).all()
+        
+        # ⚡ FIX: Inject a temporary custom runtime attribute map helper onto each object to fulfill template criteria
+        for booking in user_bookings:
+            booking.display_fare = booking.estimated_fare
+            
     except Exception as e:
         print(f"Error loading dashboard bookings: {e}")
         user_bookings = []
