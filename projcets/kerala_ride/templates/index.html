@@ -240,11 +240,8 @@
     <div class="booking-bottom-sheet" style="height: 55%; overflow-y: auto;">
         <div class="sheet-drag-handle"></div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div style="margin-bottom: 16px;">
             <h2 class="greeting" style="margin:0; font-size:22px; font-weight:800;">Where to?</h2>
-            <button class="btn btn-outline btn-sm" onclick="document.getElementById('more-menu-sheet').classList.add('active')" style="min-height:38px; border-radius: 10px; font-weight:600;">
-                <i class="fa-solid fa-user-shield"></i> Security Contacts
-            </button>
         </div>
 
         <div class="search-routing-container">
@@ -281,12 +278,18 @@
                 </div>
             </div>
 
-            <div style="display:flex; gap:12px; margin-top:18px;">
-                <button class="btn btn-outline" id="add-stop-node-btn" style="flex:1; min-height:54px; border-radius:14px; font-size:15px; font-weight:700;">
-                    <i class="fa-solid fa-plus-circle"></i> Add Stop
-                </button>
-                <button class="btn btn-primary" id="calculate-fare-btn" style="flex:1; min-height:54px; border-radius:14px; font-size:15px; font-weight:700;">
-                    <i class="fa-solid fa-calculator"></i> Calculate Fare
+            <div style="display:flex; flex-direction:column; gap:12px; margin-top:18px;">
+                <div style="display:flex; gap:12px; width:100%;">
+                    <button class="btn btn-outline" id="add-stop-node-btn" style="flex:1; min-height:54px; border-radius:14px; font-size:15px; font-weight:700; margin:0;">
+                        <i class="fa-solid fa-plus-circle"></i> Add Stop
+                    </button>
+                    <button class="btn btn-primary" id="calculate-fare-btn" style="flex:1; min-height:54px; border-radius:14px; font-size:15px; font-weight:700; margin:0;">
+                        <i class="fa-solid fa-calculator"></i> Calculate Fare
+                    </button>
+                </div>
+                
+                <button class="btn btn-accent" id="main-book-ride-execution-btn" style="width:100%; min-height:56px; border-radius:14px; font-size:16px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; box-shadow:0 4px 14px rgba(217, 119, 6, 0.25); margin:0;">
+                    <i class="fa-solid fa-car-tunnel"></i> Book Ride Now
                 </button>
             </div>
         </div>
@@ -304,10 +307,6 @@
                 <span>Upfront Fare:</span>
                 <span id="total-fare-val">₹0.00</span>
             </div>
-
-            <button class="btn btn-accent" id="main-book-ride-execution-btn" style="width:100%; min-height:56px; margin-top:16px; border-radius:14px; font-size:16px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; box-shadow:0 4px 14px rgba(217, 119, 6, 0.3);">
-                <i class="fa-solid fa-car-tunnel"></i> Confirm & Book Ride Now
-            </button>
         </div>
 
         <div class="service-bubbles" style="margin-top:24px; border-top:1px solid #e2e8f0; padding-top:20px;">
@@ -316,27 +315,6 @@
             <div class="service-bubble"><img src="https://img.icons8.com/color/96/000000/truck.png" alt="Goods"><span>Goods</span></div>
         </div>
     </div>
-</div>
-
-<div class="more-menu-sheet" id="more-menu-sheet">
-    <div class="menu-header">
-        <h3 style="font-size:18px; font-weight:800; color:var(--primary-color);">Emergency Safety Contacts</h3>
-        <button onclick="document.getElementById('more-menu-sheet').classList.remove('active')" style="background:#f1f5f9; border:none; width:36px; height:32px; border-radius:50%;"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    
-    <form action="{{ url_for('main.update_emergency_contact') }}" method="POST">
-        <div class="form-group">
-            <label class="form-label">Trusted Person Name</label>
-            <input type="text" name="contact_name" class="form-control generic-large-input" value="{{ current_user.emergency_contact_name or '' if current_user.is_authenticated else '' }}" placeholder="e.g., Parent / Spouse Contact Name" required>
-        </div>
-        <div class="form-group">
-            <label class="form-label">Trusted Safety Phone Number</label>
-            <input type="tel" name="contact_phone" class="form-control generic-large-input" value="{{ current_user.emergency_contact_phone or '' if current_user.is_authenticated else '' }}" placeholder="e.g., +91 98765 43210" required>
-        </div>
-        <button type="submit" class="btn btn-primary" style="width:100%; min-height:54px; font-size:15px; font-weight:700; border-radius:12px;">
-            <i class="fa-solid fa-floppy-disk"></i> Secure Safety Contacts
-        </button>
-    </form>
 </div>
 
 <div class="chat-drawer-container" id="chat-drawer">
@@ -375,28 +353,24 @@
     document.addEventListener("DOMContentLoaded", function() {
         updateNetworkConnectionStatus(); 
 
-        // ⚡ Lag-Free Accelerated Configuration Options 
         var map = L.map('home-live-map', {
             zoomControl: false,
-            preferCanvas: true,        // Renders visual items as vectors instead of heavy individual DOM layers
+            preferCanvas: true,        
             bounceAtZoomLimits: false,
-            inertia: false,            // Prevents slow frame rate panning degradation loops
-            zoomAnimation: false,      // Disables heavy animations on mobile graphics chips
-            fadeAnimation: false,      // Stops tile-fading lag during rapid pans
+            inertia: false,            
+            zoomAnimation: false,      
+            fadeAnimation: false,      
             markerZoomAnimation: false,
             wheelDebounceTime: 150
         }).setView([currentLatitude, currentLongitude], 14);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
-            updateWhenIdle: true,      // post-processes loading after tracking pans stabilize 
-            keepBuffer: 1,             // Minimized tile rendering buffer footprint
-            unloadInvisibleTiles: true // Instantly purges off-screen tile chunks from phone RAM
+            updateWhenIdle: true,       
+            keepBuffer: 1,             
+            unloadInvisibleTiles: true 
         }).addTo(map);
 
-        // ==========================================================================
-        // ⚡ ANTI-LAG SHEET INTERSECTION WATCHERS (Layout Thrashing Fix)
-        // ==========================================================================
         let mapResizeTimeout;
         const resizeObserver = new ResizeObserver(() => {
             clearTimeout(mapResizeTimeout);
