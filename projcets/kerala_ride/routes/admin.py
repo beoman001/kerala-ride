@@ -10,7 +10,8 @@ admin_bp = Blueprint('admin', __name__)
 
 
 def check_admin():
-    if current_user.role != 'admin':
+    """🛡️ Case-Insensitive Permission Guard Engine Verification Block"""
+    if not current_user.is_authenticated or current_user.role.lower() != 'admin':
         flash('Access denied. Administrator privileges required.', 'danger')
         return False
     return True
@@ -43,7 +44,8 @@ def dashboard():
 
     district_counts = {}
     for d in Driver.query.all():
-        district_counts[d.district] = district_counts.get(d.district, 0) + 1
+        if d.district:
+            district_counts[d.district] = district_counts.get(d.district, 0) + 1
 
     return render_template(
         'admin/dashboard.html',
@@ -140,7 +142,7 @@ def add_promo():
         flash(f'Promo code {code} already exists.', 'warning')
         return redirect(url_for('admin.campaigns'))
     promo = PromoOffer(code=code, description=desc, discount_percentage=discount,
-                       expiry_date=now_utc() + timedelta(days=days))
+                        expiry_date=now_utc() + timedelta(days=days))
     db.session.add(promo)
     log_action("Create Promo", f"Created promo code {code} ({discount}% off, valid {days} days).")
     db.session.commit()
