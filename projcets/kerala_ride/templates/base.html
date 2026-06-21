@@ -68,6 +68,11 @@
             transform: rotate(-135deg);
         }
 
+        /* 📱 Hide Bottom Nav by Default on PC */
+        .mobile-bottom-nav {
+            display: none; 
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding-left: 15px !important;
@@ -133,8 +138,54 @@
                 display: none !important; 
             }
             
+            /* 🚨 Override Old Hamburger (Hide it to use Bottom Nav instead) */
             .nav-hamburger {
-                display: block !important;
+                display: none !important;
+            }
+
+            /* 📱 BOTTOM NAVIGATION STYLING */
+            .mobile-bottom-nav {
+                display: flex;
+                justify-content: space-around;
+                align-items: center;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                background-color: #ffffff;
+                box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+                padding: 10px 0;
+                z-index: 99999;
+                padding-bottom: env(safe-area-inset-bottom, 10px); 
+            }
+
+            .mobile-bottom-nav .nav-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-decoration: none;
+                color: #6b7280;
+                font-size: 12px;
+                gap: 4px;
+                flex: 1;
+            }
+
+            .mobile-bottom-nav .nav-item i {
+                font-size: 20px;
+            }
+
+            .mobile-bottom-nav .nav-item:hover,
+            .mobile-bottom-nav .nav-item:active {
+                color: #064e3b;
+            }
+            
+            .mobile-bottom-nav .text-danger:hover,
+            .mobile-bottom-nav .text-danger:active {
+                color: #dc3545;
+            }
+
+            body {
+                padding-bottom: 70px; /* Prevent content from being hidden behind the nav */
             }
         }
     </style>
@@ -205,6 +256,49 @@
     <main>
         {% block content %}{% endblock %}
     </main>
+
+    <nav class="mobile-bottom-nav">
+        <a href="{{ url_for('main.index') }}" class="nav-item">
+            <i class="fa-solid fa-house"></i>
+            <span>Home</span>
+        </a>
+        
+        {% if current_user.is_authenticated %}
+            {% if current_user.role == 'driver' %}
+                <a href="{{ url_for('driver.dashboard') }}" class="nav-item">
+                    <i class="fa-solid fa-steering-wheel"></i>
+                    <span>Console</span>
+                </a>
+            {% elif current_user.role == 'customer' %}
+                <a href="{{ url_for('customer.dashboard') }}" class="nav-item">
+                    <i class="fa-solid fa-car"></i>
+                    <span>Rides</span>
+                </a>
+            {% else %}
+                <a href="{{ url_for('admin.dashboard') }}" class="nav-item">
+                    <i class="fa-solid fa-gauge-high"></i>
+                    <span>Admin</span>
+                </a>
+            {% endif %}
+            <a href="{{ url_for('main.contact') }}" class="nav-item">
+                <i class="fa-solid fa-headset"></i>
+                <span>Help</span>
+            </a>
+            <a href="{{ url_for('auth.logout') }}" class="nav-item text-danger">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Logout</span>
+            </a>
+        {% else %}
+            <a href="{{ url_for('auth.login') }}" class="nav-item">
+                <i class="fa-solid fa-user"></i>
+                <span>Login</span>
+            </a>
+            <a href="{{ url_for('auth.register') }}" class="nav-item">
+                <i class="fa-solid fa-user-plus"></i>
+                <span>Register</span>
+            </a>
+        {% endif %}
+    </nav>
 
     <footer>
         <div class="container">
