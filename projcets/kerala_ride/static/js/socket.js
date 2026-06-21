@@ -10,6 +10,11 @@ document.addEventListener("DOMContentLoaded", function() {
         socket.emit('join_passenger_pool', {});
     });
 
+    // Automatically resolve any dimensional tile bugs on initialization
+    if (typeof map !== 'undefined' && map) {
+        setTimeout(() => { map.invalidateSize(); }, 400);
+    }
+
     // ==========================================================================
     // ⚡ REGION 1: LIVE BROADCAST FLEET MAPPING (REPLACES MOCK MATH LOOPS)
     // ==========================================================================
@@ -39,24 +44,22 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     // ==========================================================================
-    // ⚡ REGION 2: REAL PRODUCTION USER BOOKING & DASHBOARD REDIRECT
+    // ⚡ REGION 2: FORM-BASED ROUTING INTERCEPT & REDIRECT FLOW
     // ==========================================================================
-    const mainBookRideBtn = document.getElementById("main-book-ride-execution-btn");
-    if (mainBookRideBtn) {
-        mainBookRideBtn.addEventListener("click", async function() {
-            const destination = document.getElementById("end-node").value.trim();
+    const formBookBtn = document.getElementById("bookBtn");
+    if (formBookBtn) {
+        formBookBtn.addEventListener("click", async function(e) {
+            e.preventDefault(); // Stop standard form posts
+
+            const destination = document.getElementById("destination").value.trim();
             if (!destination) return alert("Please specify your final destination first.");
 
-            const selectedTierCard = document.querySelector(".tier-card.active");
-            const vehicleTier = selectedTierCard ? selectedTierCard.getAttribute("data-tier") : "auto";
-            const paymentMethod = document.querySelector(".pay-option.selected").getAttribute("data-method");
-            
-            // Pull real distance numbers from our text metrics block
-            const distanceText = document.getElementById("rendered-distance").textContent;
-            if (parseFloat(distanceText) === 0) return alert("Please calculate your route fare details before proceeding.");
+            const vehicleTier = document.getElementById("booking_type").value;
+            const paymentMethod = document.getElementById("payment_method").value;
+            const finalFare = document.getElementById("estimated_fare").value;
 
-            mainBookRideBtn.disabled = true;
-            mainBookRideBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Preparing Booking...`;
+            formBookBtn.disabled = true;
+            formBookBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Initializing Dispatch...`;
 
             try {
                 // Fire network payload directly to our live backend controller endpoint to draft the trip
@@ -64,39 +67,36 @@ document.addEventListener("DOMContentLoaded", function() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        start_location: document.getElementById("start-node").value,
+                        start_location: document.getElementById("pickup").value,
                         end_location: destination,
                         vehicle_tier: vehicleTier,
                         payment_method: paymentMethod,
-                        total_fare: typeof baseCalculatedFare !== 'undefined' ? baseCalculatedFare : 0.0
+                        total_fare: parseFloat(finalFare) || 0.0
                     })
                 });
 
                 const tripResult = await response.json();
 
                 if (tripResult.status === 'success') {
-                    // 🚀 REDIRECT STRAIGHT TO DASHBOARD AFTER BOOKING
-                    if (tripResult.upi_intent_uri) {
+                    if (tripResult.upi_intent_uri && paymentMethod.toLowerCase() === 'upi') {
                         // Open UPI app, then push back to dashboard
                         window.location.href = tripResult.upi_intent_uri; 
-                        // ⚡ FIX: Points exactly to the customer dashboard route!
                         setTimeout(() => { window.location.href = '/customer/dashboard'; }, 1500);
                     } else {
                         // Alert user and push back to dashboard
                         alert(`🚖 Ride Confirmed!\nTracking ID: ${tripResult.transaction_id}`);
-                        // ⚡ FIX: Points exactly to the customer dashboard route!
                         window.location.href = '/customer/dashboard'; 
                     }
                 } else {
                     alert(`Error: ${tripResult.message}`);
-                    mainBookRideBtn.disabled = false;
-                    mainBookRideBtn.innerHTML = `<i class="fa-solid fa-car-tunnel"></i> Book Ride Now`;
+                    formBookBtn.disabled = false;
+                    formBookBtn.innerHTML = `<i class="fa-solid fa-car-side me-2"></i> Confirm & Book Ride`;
                 }
             } catch (err) {
                 console.error("Booking transmission sequence failure:", err);
                 alert("Network timeout. Could not establish communication with dispatch servers.");
-                mainBookRideBtn.disabled = false;
-                mainBookRideBtn.innerHTML = `<i class="fa-solid fa-car-tunnel"></i> Book Ride Now`;
+                formBookBtn.disabled = false;
+                formBookBtn.innerHTML = `<i class="fa-solid fa-car-side me-2"></i> Confirm & Book Ride`;
             }
         });
     }
