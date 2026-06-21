@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
-from flask_login import current_user  # 🛡️ Track if user is logged in
+from flask_login import current_user, login_required  # 🛡️ Track and protect user context
 from kerala_ride import db
 from kerala_ride.models import PromoOffer, SupportTicket  # ✉️ Import SupportTicket model
 from datetime import datetime, timezone
@@ -59,6 +59,33 @@ def contact():
 def offers():
     offers = PromoOffer.query.filter(PromoOffer.expiry_date > datetime.now(timezone.utc)).all()
     return render_template('offers.html', offers=offers)
+
+# ==========================================================================
+# 🚨 UPDATE EMERGENCY TRUSTED CONTACT ENDPOINT
+# ==========================================================================
+@main_bp.route('/profile/emergency-contact/update', methods=['POST'])
+@login_required
+def update_emergency_contact():
+    name = request.form.get('contact_name', '').strip()
+    phone = request.form.get('contact_phone', '').strip()
+    
+    if not name or not phone:
+        flash('Valid emergency data parameters are mandatory.', 'danger')
+        return redirect(url_for('main.index'))
+        
+    try:
+        # Dynamically commit the new fields to your current production user model properties
+        current_user.emergency_contact_name = name
+        current_user.emergency_contact_phone = phone
+        db.session.commit()
+        
+        flash('Trusted security parameters saved successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        print(f"🚨 Security Field Mutation Error: {e}")
+        flash('An error occurred while updating your safety configuration.', 'danger')
+        
+    return redirect(url_for('main.index'))
 
 
 # ==========================================================================
