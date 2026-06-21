@@ -1,4 +1,4 @@
-const CACHE_NAME = 'keralaride-v3'; // Bumped cache version to force client update activation loops
+const CACHE_NAME = 'keralaride-v4'; // Bumped cache version to force client update activation loops
 
 // ⚡ Structural assets to bundle and cache immediately on first network boot configuration
 const ASSETS_TO_CACHE = [
@@ -9,8 +9,8 @@ const ASSETS_TO_CACHE = [
     'https://cdn.socket.io/4.7.2/socket.io.min.js',
     
     // 🗺️ CRITICAL MAP FIX: Cache external Leaflet assets directly on local device storage
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css',
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'
 ];
 
 // 1. Install Event: Cache core layouts instantly
@@ -63,10 +63,11 @@ self.addEventListener('fetch', (event) => {
                     return networkResponse;
                 }
 
-                // If it's a structural asset style or an OpenStreetMap layout tile asset, save a proxy copy safely
+                // If it's a structural asset style or an OpenStreetMap/CartoDB layout tile asset, save a proxy copy safely
                 const isStaticAsset = url.pathname.startsWith('/static/');
-                const isLeafletCDNAsset = url.hostname.includes('unpkg.com');
-                const isMapTileAsset = url.hostname.includes('openstreetmap.org') || url.pathname.endsWith('.png');
+                const isLeafletCDNAsset = url.hostname.includes('cdnjs.cloudflare.com');
+                // ⚡ FIX: Added cartocdn.com so your new premium map tiles cache correctly offline!
+                const isMapTileAsset = url.hostname.includes('openstreetmap.org') || url.hostname.includes('cartocdn.com') || url.pathname.endsWith('.png');
 
                 if (isStaticAsset || isLeafletCDNAsset || isMapTileAsset) {
                     return caches.open(CACHE_NAME).then((cache) => {
