@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Driver Partner Onboarding - KeralaRide Connect{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="driver-register-container">
+        <div class="card glass-card">
+            <h2 style="text-align: center; margin-bottom: 8px;">Apply as a Driver Partner</h2>
+            <p style="text-align: center; color: var(--text-muted); font-size: 14px; margin-bottom: 30px;">
+                Onboard your yellow-board commercial vehicle and join the marketplace
+            </p>
+            
+            <form action="{{ url_for('auth.driver_register') }}" method="POST" enctype="multipart/form-data">
+                
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                
+                <div style="margin-bottom: 30px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px;">
+                    <h3 style="margin-bottom: 15px; font-size: 18px; display: flex; align-items: center; gap: 8px;">
+                        <span style="background-color: var(--primary-color); color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px;">1</span>
+                        Personal & Account Details
+                    </h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="name">Full Name (As in Licence)</label>
+                            <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Hari Kumar" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="phone">Phone Number</label>
+                            <input type="tel" id="phone" name="phone" class="form-control" placeholder="10-digit mobile" pattern="[0-9]{10}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="email">Email Address</label>
+                            <input type="email" id="email" name="email" class="form-control" placeholder="name@example.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="password">Password</label>
+                            <input type="password" id="password" name="password" class="form-control" placeholder="Min. 6 chars" minlength="6" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="confirm_password">Confirm Password</label>
+                            <input type="password" id="confirm_password" name="confirm_password" class="form-control" placeholder="Repeat password" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 30px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px;">
+                    <h3 style="margin-bottom: 15px; font-size: 18px; display: flex; align-items: center; gap: 8px;">
+                        <span style="background-color: var(--primary-color); color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px;">2</span>
+                        Operating Region & License Info
+                    </h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="district">Primary District of Operation</label>
+                            <select id="district" name="district" class="form-control" required>
+                                <option value="" disabled selected>Select District</option>
+                                <option value="Kasaragod">Kasaragod</option>
+                                <option value="Kannur">Kannur</option>
+                                <option value="Wayanad">Wayanad</option>
+                                <option value="Kozhikode">Kozhikode</option>
+                                <option value="Malappuram">Malappuram</option>
+                                <option value="Palakkad">Palakkad</option>
+                                <option value="Thrissur">Thrissur</option>
+                                <option value="Ernakulam">Ernakulam</option>
+                                <option value="Idukki">Idukki</option>
+                                <option value="Kottayam">Kottayam</option>
+                                <option value="Alappuzha">Alappuzha</option>
+                                <option value="Pathanamthitta">Pathanamthitta</option>
+                                <option value="Kollam">Kollam</option>
+                                <option value="Trivandrum">Thiruvananthapuram</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="local_body_type">Local Authority Type</label>
+                            <select id="local_body_type" name="local_body_type" class="form-control" required>
+                                <option value="Panchayath">Panchayat</option>
+                                <option value="Municipality">Municipality</option>
+                                <option value="Corporation">Corporation</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="local_body_name">Authority Name</label>
+                            <input type="text" id="local_body_name" name="local_body_name" class="form-control" placeholder="e.g. Kakkanad or Thrikkakara" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="license_number">Driving Licence Number</label>
+                            <input type="text" id="license_number" name="license_number" class="form-control" placeholder="e.g. KL-07-2020-XXXXXXX" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="permit_number">Commercial Permit Number</label>
+                            <input type="text" id="permit_number" name="permit_number" class="form-control" placeholder="e.g. P-EKM-2023-XXXX" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 30px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px;">
+                    <h3 style="margin-bottom: 15px; font-size: 18px; display: flex; align-items: center; gap: 8px;">
+                        <span style="background-color: var(--primary-color); color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px;">3</span>
+                        Vehicle Specifications
+                    </h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="vehicle_category">Vehicle Category</label>
+                            <select id="vehicle_category" name="vehicle_category" class="form-control" required>
+                                <option value="" disabled selected>Select Category</option>
+                                <optgroup label="Passenger Vehicles">
+                                    <option value="Auto Rickshaw">Auto Rickshaw</option>
+                                    <option value="Taxi">Standard Taxi</option>
+                                    <option value="Standard Cars">Standard Sedan/Hatchback</option>
+                                    <option value="MPV">MPV (7-Seater, Innova)</option>
+                                    <option value="Tempo Traveller">Tempo Traveller</option>
+                                    <option value="Mini Bus">Mini Bus</option>
+                                    <option value="Tourist Bus">Tourist Bus</option>
+                                </optgroup>
+                                <optgroup label="Goods Vehicles">
+                                    <option value="Pickup">Pickup Truck</option>
+                                    <option value="Mini Truck">Mini Truck</option>
+                                    <option value="Lorry">Lorry (Heavy Cargo)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="vehicle_brand">Brand / Manufacturer</label>
+                            <input type="text" id="vehicle_brand" name="vehicle_brand" class="form-control" placeholder="e.g. Bajaj, Maruti, Toyota" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="vehicle_model">Model</label>
+                            <input type="text" id="vehicle_model" name="vehicle_model" class="form-control" placeholder="e.g. RE Optima, Dzire, Innova" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="plate_number">Registration Number (Yellow Board)</label>
+                            <input type="text" id="plate_number" name="plate_number" class="form-control" placeholder="e.g. KL-07-CD-4321" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="seating_capacity">Seating Capacity</label>
+                            <input type="number" id="seating_capacity" name="seating_capacity" class="form-control" min="1" max="60" value="4" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="manufacture_year">Year of Manufacture</label>
+                            <input type="number" id="manufacture_year" name="manufacture_year" class="form-control" min="2000" max="2027" value="2021" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 15px; font-size: 18px; display: flex; align-items: center; gap: 8px;">
+                        <span style="background-color: var(--primary-color); color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px;">4</span>
+                        Upload Scanned Commercial Documents (PNG, JPG, PDF)
+                    </h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="photo">Driver Profile Photo</label>
+                            <input type="file" id="photo" name="photo" class="form-control" accept="image/*" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="license">Driving License Copy</label>
+                            <input type="file" id="license" name="license" class="form-control" accept="image/*,.pdf" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="rc">Vehicle RC Book</label>
+                            <input type="file" id="rc" name="rc" class="form-control" accept="image/*,.pdf" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="permit">Commercial Carriage Permit</label>
+                            <input type="file" id="permit" name="permit" class="form-control" accept="image/*,.pdf" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="insurance">Vehicle Insurance Certificate</label>
+                            <input type="file" id="insurance" name="insurance" class="form-control" accept="image/*,.pdf" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="pollution">Pollution Under Control (PUC)</label>
+                            <input type="file" id="pollution" name="pollution" class="form-control" accept="image/*,.pdf" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="yellow_board_photo">Yellow Plate & Board Vehicle Photo</label>
+                            <input type="file" id="yellow_board_photo" name="yellow_board_photo" class="form-control" accept="image/*" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="vehicle_images">Side-Profile Vehicle Photo</label>
+                            <input type="file" id="vehicle_images" name="vehicle_images" class="form-control" accept="image/*" required>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Submit Partner Application
+                </button>
+            </form>
+            
+            <div style="text-align: center; font-size: 14px; border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 20px;">
+                <p>Already have a driver or customer account? <a href="{{ url_for('auth.login') }}" style="color: var(--accent-amber); font-weight: 600;">Sign In</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

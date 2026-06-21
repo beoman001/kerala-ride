@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}KeralaRide Connect{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}Kerala's premier verified transport marketplace for passenger rides and goods logistics.{% endblock %}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#064e3b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="KeralaRide">
+    
+    <link rel="apple-touch-icon" href="/static/logo.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/logo.png">
+
+    <style>
+        /* Base Nav Hamburger Button Styling */
+        .nav-hamburger {
+            display: none;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            width: 30px;
+            height: 22px;
+            position: relative;
+            z-index: 100000 !important;
+            padding: 0;
+        }
+        
+        .nav-hamburger span {
+            display: block;
+            position: absolute;
+            height: 3px;
+            width: 100%;
+            background-color: #064e3b !important;
+            border-radius: 9px;
+            left: 0;
+            transform: rotate(0deg);
+            transition: .2s ease-in-out;
+        }
+
+        .nav-hamburger span:nth-child(1) { top: 0px; }
+        .nav-hamburger span:nth-child(2) { top: 8px; }
+        .nav-hamburger span:nth-child(3) { top: 16px; }
+
+        /* Smooth transformation animations to dynamic 'X' glyph status */
+        .nav-hamburger.open span:nth-child(1) {
+            top: 8px;
+            transform: rotate(135deg);
+        }
+        .nav-hamburger.open span:nth-child(2) {
+            opacity: 0;
+            left: -60px;
+        }
+        .nav-hamburger.open span:nth-child(3) {
+            top: 8px;
+            transform: rotate(-135deg);
+        }
+
+        /* 📱 Hide Bottom Nav by Default on PC */
+        .mobile-bottom-nav {
+            display: none; 
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding-left: 15px !important;
+                padding-right: 15px !important;
+            }
+            .card-body {
+                padding: 20px !important; 
+            }
+            #map-canvas {
+                height: 250px !important; 
+            }
+            .nav-tabs-custom {
+                flex-direction: column; 
+            }
+            .btn {
+                width: 100% !important; 
+                margin-bottom: 5px;
+            }
+            
+            .navbar {
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                position: relative;
+                padding: 15px 0 !important;
+            }
+            
+            /* 🎯 RE-ENGINEERED WITH HARDWARE ACCELERATION FOR ULTRA-SMOOTH MOBILE RENDER */
+            .nav-links {
+                display: flex !important; 
+                flex-direction: column;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background-color: #ffffff !important;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+                padding: 20px !important;
+                list-style: none;
+                gap: 15px;
+                margin: 0;
+                
+                /* State Animations - Bypasses slow frame display toggles */
+                opacity: 0;
+                visibility: hidden;
+                transform: translateY(-10px);
+                transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out, visibility 0.2s;
+                z-index: 99999 !important;
+            }
+
+            /* Triggers instantaneous, smooth transition glide */
+            .nav-links.mobile-active {
+                opacity: 1 !important;
+                visibility: visible !important;
+                transform: translateY(0) !important;
+            }
+            
+            .nav-links li {
+                width: 100%;
+            }
+
+            .nav-actions {
+                display: none !important; 
+            }
+            
+            /* ⚡ FIX: Restored mobile support for header interaction triggers */
+            .nav-hamburger {
+                display: block !important;
+            }
+
+            /* 📱 BOTTOM NAVIGATION STYLING */
+            .mobile-bottom-nav {
+                display: flex;
+                justify-content: space-around;
+                align-items: center;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                background-color: #ffffff;
+                box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+                padding: 10px 0;
+                z-index: 99999;
+                padding-bottom: env(safe-area-inset-bottom, 10px); 
+            }
+
+            .mobile-bottom-nav .nav-item {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-decoration: none;
+                color: #6b7280;
+                font-size: 12px;
+                gap: 4px;
+                flex: 1;
+                cursor: pointer;
+            }
+
+            .mobile-bottom-nav .nav-item i {
+                font-size: 20px;
+            }
+
+            .mobile-bottom-nav .nav-item:hover,
+            .mobile-bottom-nav .nav-item:active {
+                color: #064e3b;
+            }
+            
+            .mobile-bottom-nav .text-danger:hover,
+            .mobile-bottom-nav .text-danger:active {
+                color: #dc3545;
+            }
+
+            body {
+                padding-bottom: 70px; /* Prevent content from being hidden behind the nav */
+            }
+        }
+    </style>
+
+    {% block head %}{% endblock %}
+</head>
+<body>
+
+    <header>
+        <nav class="navbar container">
+            <a class="brand" href="{{ url_for('main.index') }}" style="display: flex; align-items: center; gap: 10px; text-decoration: none;">
+                <img src="/static/logo.png" alt="Logo" style="height: 36px; width: auto; max-width: 120px; object-fit: contain;" onerror="this.src='https://ui-avatars.com/api/?name=Kerala+Ride&background=064e3b&color=fff'">
+                <span>Kerala<span class="brand-accent">Ride</span></span>
+            </a>
+
+            <ul class="nav-links" id="nav-links">
+                <li><a href="{{ url_for('main.about') }}" class="nav-link">About</a></li>
+                <li><a href="{{ url_for('main.offers') }}" class="nav-link">Offers</a></li>
+                <li><a href="{{ url_for('main.contact') }}" class="nav-link">Support</a></li>
+                {% if current_user.is_authenticated %}
+                    {% if current_user.role == 'admin' %}
+                        <li><a href="{{ url_for('admin.dashboard') }}" class="nav-link nav-link-role"><i class="fa-solid fa-gauge-high"></i> Console</a></li>
+                    {% elif current_user.role == 'customer' %}
+                        <li><a href="{{ url_for('customer.dashboard') }}" class="nav-link nav-link-role"><i class="fa-solid fa-user"></i> Dashboard</a></li>
+                    {% elif current_user.role == 'driver' %}
+                        <li><a href="{{ url_for('driver.dashboard') }}" class="nav-link nav-link-role"><i class="fa-solid fa-steering-wheel"></i> Console</a></li>
+                    {% endif %}
+                    <li><a href="{{ url_for('auth.logout') }}" class="nav-link text-danger"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+                {% else %}
+                    <li><a href="{{ url_for('auth.login') }}" class="nav-link">Login</a></li>
+                    <li><a href="{{ url_for('auth.register') }}" class="nav-link fw-bold text-success">Register</a></li>
+                {% endif %}
+            </ul>
+
+            <div class="nav-actions">
+                {% if current_user.is_authenticated %}
+                    <span class="nav-user-name">{{ current_user.name.split()[0] }}</span>
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline btn-sm">
+                        <i class="fa-solid fa-right-from-bracket"></i> Logout
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline btn-sm">Login</a>
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm">Register</a>
+                {% endif %}
+            </div>
+
+            <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle navigation">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </nav>
+    </header>
+
+    <div class="flash-container container" id="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} flash-alert" role="alert">
+                    <span>{{ message }}</span>
+                    <button class="alert-close" onclick="this.parentElement.remove()" aria-label="Dismiss">&times;</button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <nav class="mobile-bottom-nav">
+        <a href="{{ url_for('main.index') }}" class="nav-item">
+            <i class="fa-solid fa-house"></i>
+            <span>Home</span>
+        </a>
+        
+        {% if current_user.is_authenticated %}
+            {% if current_user.role == 'driver' %}
+                <a href="{{ url_for('driver.dashboard') }}" class="nav-item">
+                    <i class="fa-solid fa-steering-wheel"></i>
+                    <span>Console</span>
+                </a>
+            {% elif current_user.role == 'customer' %}
+                <a href="{{ url_for('customer.dashboard') }}" class="nav-item">
+                    <i class="fa-solid fa-car"></i>
+                    <span>Rides</span>
+                </a>
+            {% else %}
+                <a href="{{ url_for('admin.dashboard') }}" class="nav-item">
+                    <i class="fa-solid fa-gauge-high"></i>
+                    <span>Admin</span>
+                </a>
+            {% endif %}
+            
+            <div class="nav-item" onclick="document.getElementById('more-menu-sheet').classList.toggle('active')">
+                <i class="fa-solid fa-bars"></i>
+                <span>More</span>
+            </div>
+            
+            <a href="{{ url_for('auth.logout') }}" class="nav-item text-danger">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Logout</span>
+            </a>
+        {% else %}
+            <a href="{{ url_for('auth.login') }}" class="nav-item">
+                <i class="fa-solid fa-user"></i>
+                <span>Login</span>
+            </a>
+            <a href="{{ url_for('auth.register') }}" class="nav-item">
+                <i class="fa-solid fa-user-plus"></i>
+                <span>Register</span>
+            </a>
+            <div class="nav-item" onclick="document.getElementById('more-menu-sheet').classList.toggle('active')">
+                <i class="fa-solid fa-bars"></i>
+                <span>More</span>
+            </div>
+        {% endif %}
+    </nav>
+
+    <div id="more-menu-sheet" class="more-menu-sheet">
+        <div class="menu-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0; font-size: 18px;">KeralaRide Options</h3>
+            <button style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted);" onclick="document.getElementById('more-menu-sheet').classList.remove('active')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <a href="{{ url_for('main.about') }}" class="menu-item" style="display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border-color); font-weight: 500;"><i class="fa-solid fa-circle-info" style="color: var(--primary-color); font-size: 18px;"></i> About Us</a>
+        <a href="{{ url_for('main.contact') }}" class="menu-item" style="display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border-color); font-weight: 500;"><i class="fa-solid fa-shield-halved" style="color: var(--accent-success); font-size: 18px;"></i> Support & Safety</a>
+        <a href="{{ url_for('main.offers') }}" class="menu-item" style="display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border-color); font-weight: 500;"><i class="fa-solid fa-tag" style="color: var(--accent-amber); font-size: 18px;"></i> Promos & Discounts</a>
+        <a href="{{ url_for('auth.register') }}?role=driver" class="menu-item" style="display: flex; align-items: center; gap: 12px; padding: 14px 0; font-weight: 500;"><i class="fa-solid fa-car" style="color: var(--accent-blue); font-size: 18px;"></i> Drive with Us</a>
+    </div>
+
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <div class="brand" style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                        <img src="/static/logo.png" alt="Logo" style="height: 30px; width: auto; object-fit: contain;" onerror="this.style.display='none'">
+                        <span>Kerala<span class="brand-accent">Ride</span></span>
+                    </div>
+                    <p>Providing premium vehicle logistics and verified partner registries to secure and optimize transit across all 14 districts of Kerala.</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="{{ url_for('main.about') }}">About Us</a></li>
+                        <li><a href="{{ url_for('main.contact') }}">Contact Support</a></li>
+                        <li><a href="{{ url_for('main.offers') }}">Special Offers</a></li>
+                        <li><a href="{{ url_for('auth.register') }}?role=driver">Partner with Us</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Contact</h4>
+                    <ul>
+                        <li><i class="fa-solid fa-phone"></i> <a href="tel:+918590513605">+91 85905 13605</a></li>
+                        <li><i class="fa-solid fa-envelope"></i> <a href="mailto:beonbinesh972@gmail.com">beonbinesh972@gmail.com</a></li>
+                        <li><i class="fa-solid fa-location-dot"></i> Thekkedath Building, Piravom, Ernakulam, Kerala</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                &copy; 2026 KeralaRide Connect (Pvt Ltd). All Rights Reserved.
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/socket.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const csrfToken = "{{ csrf_token() }}";
+            document.querySelectorAll("form[method='POST'], form[method='post']").forEach(form => {
+                if (!form.querySelector('input[name="csrf_token"]')) {
+                    const hiddenInput = document.createElement("input");
+                    hiddenInput.type = "hidden";
+                    hiddenInput.name = "csrf_token";
+                    hiddenInput.value = csrfToken;
+                    form.appendChild(hiddenInput);
+                }
+            });
+        });
+    </script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/service-worker.js').then(function(registration) {
+                    console.log('PWA ServiceWorker registration successful with scope: ', registration.scope);
+                }, function(err) {
+                    console.log('PWA ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const hamburger = document.getElementById("nav-hamburger");
+            const navLinks = document.getElementById("nav-links");
+
+            if (hamburger && navLinks) {
+                hamburger.addEventListener("click", function(e) {
+                    e.stopPropagation(); 
+                    navLinks.classList.toggle("mobile-active");
+                    hamburger.classList.toggle("open");
+                });
+
+                document.addEventListener("click", function(e) {
+                    if (!hamburger.contains(e.target) && !navLinks.contains(e.target)) {
+                        navLinks.classList.remove("mobile-active");
+                        hamburger.classList.remove("open");
+                    }
+                });
+            }
+        });
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

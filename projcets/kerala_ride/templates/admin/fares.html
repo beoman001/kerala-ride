@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Fares - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-5" style="margin-bottom: 60px;">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb;">
+                <div class="card-header bg-primary text-white" style="background-color: var(--primary-color, #064e3b) !important; padding: 15px 20px;">
+                    <h5 class="mb-0" style="font-size: 16px; font-weight: 700;"><i class="fa-solid fa-calculator"></i> Set Vehicle Fares</h5>
+                </div>
+                <div class="card-body" style="padding: 25px;">
+                    <form method="POST" action="{{ url_for('admin.manage_fares') }}">
+                        <div class="mb-3">
+                            <label class="form-label" style="font-size: 13px; font-weight: 600; color: #374151;">Vehicle Category</label>
+                            <select name="category" class="form-control" style="border-radius: 8px; padding: 10px;" required>
+                                <option value="">Select Category...</option>
+                                {% for category in VEHICLE_CATEGORIES %}
+                                    <option value="{{ category }}">{{ category }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" style="font-size: 13px; font-weight: 600; color: #374151;">Base Fare (₹)</label>
+                            <input type="number" step="0.01" name="base_fare" class="form-control" style="border-radius: 8px; padding: 10px;" placeholder="e.g. 3000" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" style="font-size: 13px; font-weight: 600; color: #374151;">Base Distance Limit (KM)</label>
+                            <input type="number" step="0.1" name="base_distance_km" class="form-control" style="border-radius: 8px; padding: 10px;" placeholder="e.g. 80" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" style="font-size: 13px; font-weight: 600; color: #374151;">Extra Rate Per KM (₹)</label>
+                            <input type="number" step="0.01" name="rate_per_km" class="form-control" style="border-radius: 8px; padding: 10px;" placeholder="e.g. 26" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 py-2 font-weight-bold" style="border-radius: 8px; background-color: var(--primary-color, #064e3b); border-color: var(--primary-color, #064e3b);">
+                            Save Pricing Rule
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow-sm" style="border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb;">
+                <div class="card-header bg-dark text-white" style="padding: 15px 20px; background-color: #111827 !important;">
+                    <h5 class="mb-0" style="font-size: 16px; font-weight: 700;"><i class="fa-solid fa-list"></i> Active Pricing Rules</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0" style="width: 100%; border-collapse: collapse;">
+                            <thead class="table-light" style="background-color: #f9fafb;">
+                                <tr>
+                                    <th style="padding: 15px; border-bottom: 1px solid #e5e7eb;">Category</th>
+                                    <th style="padding: 15px; border-bottom: 1px solid #e5e7eb;">Base Fare</th>
+                                    <th style="padding: 15px; border-bottom: 1px solid #e5e7eb;">Minimum KM Limit</th>
+                                    <th style="padding: 15px; border-bottom: 1px solid #e5e7eb;">Extra Fare / KM</th>
+                                    <th style="padding: 15px; border-bottom: 1px solid #e5e7eb;">Last Modified</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for config in configs %}
+                                <tr>
+                                    <td style="padding: 15px; border-bottom: 1px solid #f3f4f6;"><strong>{{ config.vehicle_category }}</strong></td>
+                                    <td style="padding: 15px; border-bottom: 1px solid #f3f4f6;">₹{{ config.base_fare }}</td>
+                                    <td style="padding: 15px; border-bottom: 1px solid #f3f4f6;">{{ config.base_distance_km }} km</td>
+                                    <td style="padding: 15px; border-bottom: 1px solid #f3f4f6;">₹{{ config.rate_per_km }}</td>
+                                    <td style="padding: 15px; border-bottom: 1px solid #f3f4f6;" class="text-muted small">{{ config.updated_at.strftime('%Y-%m-%d') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-5" style="padding: 40px;">
+                                        <i class="fa-solid fa-face-meh" style="font-size: 30px; display: block; margin-bottom: 10px;"></i>
+                                        No customized pricing rules have been saved yet. Use the form on the left to set up fares!
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
