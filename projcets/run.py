@@ -5,7 +5,7 @@ monkey.patch_all()
 # 2. Now import the rest of your environment variables and components
 import os
 from kerala_ride import create_app, socketio, seed_database, celery_app, db
-from kerala_ride.models import User
+from kerala_ride.models import User, Driver
 
 app = create_app()
 
@@ -23,7 +23,9 @@ with app.app_context():
     db.create_all()
     print("✨ [SYSTEM] Brand new synchronized layout schemas created.")
     
-    # Build your clean presentation master admin account
+    # ---------------------------------------------------------
+    # 1. Build your clean presentation Master Admin account
+    # ---------------------------------------------------------
     admin_exists = User.query.filter_by(email="admin@keralaride.com").first()
     if not admin_exists:
         master_admin = User(
@@ -37,7 +39,35 @@ with app.app_context():
         db.session.commit()
         print("🚀 [SYSTEM] Master admin freshly initialized.")
 
-    # Seed fresh demo datasets safely
+    # ---------------------------------------------------------
+    # 2. Build your guaranteed Test Driver account
+    # ---------------------------------------------------------
+    driver_exists = User.query.filter_by(email="driver@keralaride.com").first()
+    if not driver_exists:
+        test_driver_user = User(
+            name="Test Driver",
+            email="driver@keralaride.com",
+            phone="8888888888",
+            role="driver"
+        )
+        test_driver_user.set_password("driver123") # Set exactly to driver123
+        db.session.add(test_driver_user)
+        db.session.flush() # Flush gets the ID before committing
+        
+        # Create their driver profile (Auto-Approved for instant testing)
+        test_driver_profile = Driver(
+            user_id=test_driver_user.id,
+            district="Ernakulam",
+            verification_status="Approved",
+            is_online=True
+        )
+        db.session.add(test_driver_profile)
+        db.session.commit()
+        print("🚖 [SYSTEM] Test Driver freshly initialized.")
+
+    # ---------------------------------------------------------
+    # 3. Seed fresh demo datasets safely
+    # ---------------------------------------------------------
     try:
         seed_database(app)
         print("🌱 [SYSTEM] Demo datasets seeded successfully.")
