@@ -56,9 +56,12 @@ def clean_phone_number(phone_str):
 @limiter.limit("5 per minute") # 🛡️ Blocks brute-force password guessing
 def login():
     if current_user.is_authenticated:
-        if current_user.role == 'admin':
+        # ⚡ FIX: Normalize the role string to lowercase to prevent capital letter bugs
+        role = current_user.role.lower() if current_user.role else ''
+        
+        if role == 'admin':
             return redirect(url_for('admin.dashboard'))
-        elif current_user.role == 'driver':
+        elif role == 'driver':
             return redirect(url_for('driver.dashboard'))
         return redirect(url_for('customer.dashboard'))
 
@@ -76,10 +79,13 @@ def login():
 
         login_user(user, remember=remember)
 
+        # ⚡ FIX: Normalize role here as well for the initial login redirect
+        role = user.role.lower() if user.role else ''
+
         # 🎯 Route user to their exact dashboard matching admin.py endpoints
-        if user.role == 'admin':
+        if role == 'admin':
             return redirect(url_for('admin.dashboard'))
-        elif user.role == 'driver':
+        elif role == 'driver':
             driver_profile = Driver.query.filter_by(user_id=user.id).first()
             if driver_profile and driver_profile.verification_status != 'Approved':
                 flash(f"Your driver account is currently: {driver_profile.verification_status}. You'll have restricted access until approved.", "warning")
