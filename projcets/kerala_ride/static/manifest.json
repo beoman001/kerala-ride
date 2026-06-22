@@ -9,6 +9,7 @@
   "categories": ["travel", "navigation", "business"],
   "start_url": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay"],
   "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#064e3b",
@@ -23,7 +24,7 @@
       "src": "/static/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ],
   "screenshots": [
@@ -32,7 +33,23 @@
       "sizes": "1080x1920",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Driver Dashboard"
+      "label": "Driver Dashboard and Live Map Tracking"
+    },
+    {
+      "src": "/static/screenshot-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Admin Logistics Console"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Book a Ride",
+      "short_name": "Book",
+      "description": "Quickly book a passenger ride",
+      "url": "/customer",
+      "icons": [{ "src": "/static/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
