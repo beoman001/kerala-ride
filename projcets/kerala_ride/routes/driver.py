@@ -30,7 +30,7 @@ def dashboard():
 
     vehicle = Vehicle.query.filter_by(driver_id=driver.id).first()
 
-    # Earnings — use final_fare for accuracy, fall back to estimated_fare
+    # Earnings — use final_fare for accuracy, fall back to estimated_fare safely
     current_time = now_utc()
     today_start = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
     month_start = current_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -40,14 +40,18 @@ def dashboard():
         Booking.status == 'Completed',
         Booking.completed_at >= today_start
     ).all()
-    today_earnings = sum((b.final_fare or b.estimated_fare) for b in today_bookings)
+    
+    # ⚡ SAFE FIX: Fallback arithmetic casting logic handles NULL fields cleanly
+    today_earnings = sum((float(b.final_fare or b.estimated_fare or 0.0)) for b in today_bookings)
 
     month_bookings = Booking.query.filter(
         Booking.driver_id == driver.id,
         Booking.status == 'Completed',
         Booking.completed_at >= month_start
     ).all()
-    month_earnings = sum((b.final_fare or b.estimated_fare) for b in month_bookings)
+    
+    # ⚡ SAFE FIX: Fallback arithmetic casting logic handles NULL fields cleanly
+    month_earnings = sum((float(b.final_fare or b.estimated_fare or 0.0)) for b in month_bookings)
 
     completed_trips_count = Booking.query.filter(
         Booking.driver_id == driver.id,
