@@ -76,7 +76,7 @@ def login():
 
         login_user(user, remember=remember)
 
-        # 🎯 FIX: Route user to their exact dashboard matching admin.py endpoints
+        # 🎯 Route user to their exact dashboard matching admin.py endpoints
         if user.role == 'admin':
             return redirect(url_for('admin.dashboard'))
         elif user.role == 'driver':
