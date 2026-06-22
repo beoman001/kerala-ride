@@ -5,7 +5,12 @@ import requests
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import login_required, current_user
-from twilio.rest import Client
+
+# Wrap Twilio import in a try-except block so missing packages don't crash the entire app on boot
+try:
+    from twilio.rest import Client
+except ImportError:
+    Client = None
 
 # IMPORT CORE SYSTEM CONTEXT HOOKS
 from kerala_ride import db, socketio, celery_app
@@ -40,6 +45,10 @@ def send_sms_alert(to_phone, message_body):
     📱 Twilio SMS Gateway Dispatcher:
     Sends an instant text notification securely utilizing system environment configuration keys.
     """
+    if not Client:
+        print("⚠️ SMS Warning: Twilio library not installed. Skipping dispatch.")
+        return False
+
     account_sid = os.environ.get('TWILIO_ACCOUNT_SID')
     auth_token = os.environ.get('TWILIO_AUTH_TOKEN')
     twilio_number = os.environ.get('TWILIO_PHONE_NUMBER')
@@ -139,15 +148,22 @@ def book():
             payment_method = request.form.get('payment_method', 'Cash')
             promo_code = request.form.get('promo_code', '').strip().upper()
             
+            # ⚡ SAFE FIX: Ensure fare parses properly without crashing on text
             estimated_fare_raw = request.form.get('estimated_fare', '0.0').strip()
-            estimated_fare = float(estimated_fare_raw) if estimated_fare_raw else 0.0
+            try:
+                estimated_fare = float(estimated_fare_raw) if estimated_fare_raw else 0.0
+            except ValueError:
+                estimated_fare = 0.0
             
             pickup_district = request.form.get('pickup_district', '').strip()
 
             # Goods cargo details
             material_description = request.form.get('material_description', '').strip()
             weight_raw = request.form.get('weight', '0.0').strip()
-            weight = float(weight_raw) if (booking_type == 'goods' and weight_raw) else None
+            try:
+                weight = float(weight_raw) if (booking_type == 'goods' and weight_raw) else None
+            except ValueError:
+                weight = None
 
             # Parse Scheduled Time
             scheduled_time_raw = request.form.get('scheduled_time')
@@ -182,7 +198,10 @@ def book():
             stopover_lng = float(s_lng_raw) if s_lng_raw else None
 
             # Fetch potential waiting elements
-            waiting_minutes = int(request.form.get('waiting_minutes', 0))
+            try:
+                waiting_minutes = int(request.form.get('waiting_minutes', 0))
+            except ValueError:
+                waiting_minutes = 0
 
             new_booking = Booking(
                 customer_id=current_user.id,
@@ -272,7 +291,11 @@ def estimate_fare():
     promo_code = data.get('promo_code', '').strip().upper()
     
     # ⚡ ROLLING TARGET: Round up into absolute hourly increments (60 mins = ₹100 flat multiplier)
-    waiting_minutes = int(data.get('waiting_minutes', 0))
+    try:
+        waiting_minutes = int(data.get('waiting_minutes', 0))
+    except ValueError:
+        waiting_minutes = 0
+        
     waiting_hours = math.ceil(waiting_minutes / 60.0)
     waiting_charge_total = float(waiting_hours * 100.0)
 
@@ -452,8 +475,6 @@ def estimate_fare():
 def dashboard():
     try:
         user_bookings = Booking.query.filter_by(customer_id=current_user.id).order_by(Booking.id.desc()).all()
-        for booking in user_bookings:
-            booking.display_fare = booking.estimated_fare
     except Exception as e:
         print(f"Error loading dashboard bookings: {e}")
         user_bookings = []
@@ -495,7 +516,9 @@ def cancel_ride(booking_id):
         penalty_text = "5%"
 
     if penalty_percentage > 0.0:
-        penalty = round(float(booking.estimated_fare) * penalty_percentage, 2)
+        # ⚡ SAFE FIX: Protect against missing fare parameters
+        safe_estimated_fare = float(booking.estimated_fare or 0.0)
+        penalty = round(safe_estimated_fare * penalty_percentage, 2)
         booking.status = "Cancelled"
         booking.final_fare = penalty
         flash(f"Ride cancelled. A {penalty_text} late cancellation penalty (₹{penalty}) has been applied.", "warning")
