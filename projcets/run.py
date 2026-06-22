@@ -54,16 +54,20 @@ with app.app_context():
         db.session.add(test_driver_user)
         db.session.flush() # Flush gets the ID before committing
         
-        # Create their driver profile (Auto-Approved for instant testing)
+        # ⚡ FIXED: Added all mandatory fields to satisfy PostgreSQL NOT NULL constraints
         test_driver_profile = Driver(
             user_id=test_driver_user.id,
             district="Ernakulam",
+            local_body_type="Corporation",       # Satisfies NOT NULL constraint
+            local_body_name="Kochi",             # Satisfies NOT NULL constraint
+            license_number="KL-07-2026-0004321", # Satisfies NOT NULL constraint
+            permit_number="P-COMM-2026-X",       # Satisfies NOT NULL constraint
             verification_status="Approved",
             is_online=True
         )
         db.session.add(test_driver_profile)
         db.session.commit()
-        print("🚖 [SYSTEM] Test Driver freshly initialized.")
+        print("🚖 [SYSTEM] Test Driver freshly initialized with full schema compliance.")
 
     # ---------------------------------------------------------
     # 3. Seed fresh demo datasets safely
