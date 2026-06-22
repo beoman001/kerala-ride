@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
 from flask_login import current_user, login_required  # 🛡️ Track and protect user context
 from kerala_ride import db
-from kerala_ride.models import PromoOffer, SupportTicket  # ✉️ Import SupportTicket model
+from kerala_ride.models import PromoOffer, SupportTicket, Booking, EmergencyContact, now_utc
 from datetime import datetime, timezone
 import urllib.parse  # 🔗 For secure URL-encoding of UPI intent parameters
 
@@ -10,7 +10,7 @@ main_bp = Blueprint('main', __name__)
 @main_bp.route('/')
 def index():
     # Fetch active promo offers to show on landing page
-    offers = PromoOffer.query.filter(PromoOffer.expiry_date > datetime.now(timezone.utc)).limit(3).all()
+    offers = PromoOffer.query.filter(PromoOffer.expiry_date > now_utc()).limit(3).all()
     return render_template('index.html', offers=offers)
 
 # ==========================================================================
@@ -71,7 +71,7 @@ def contact():
 
 @main_bp.route('/offers')
 def offers():
-    offers = PromoOffer.query.filter(PromoOffer.expiry_date > datetime.now(timezone.utc)).all()
+    offers = PromoOffer.query.filter(PromoOffer.expiry_date > now_utc()).all()
     return render_template('offers.html', offers=offers)
 
 # ==========================================================================
@@ -88,19 +88,42 @@ def create_trip_dispatch():
     
     start_loc = data.get('start_location', '').strip()
     end_loc = data.get('end_location', '').strip()
+    stopover_loc = data.get('stopover_location', '').strip()
+    wait_mins = int(data.get('waiting_minutes', 0))
     vehicle_tier = data.get('vehicle_tier', '').strip()
-    payment_method = data.get('payment_method', '').strip()
-    total_fare = data.get('total_fare', 0.0)
+    payment_method = data.get('payment_method', 'Cash').strip()
     
-    if not end_loc or not vehicle_tier or not payment_method:
+    # Safely cast fare to float to prevent mathematical crashes
+    try:
+        total_fare = float(data.get('total_fare', 0.0))
+    except ValueError:
+        total_fare = 0.0
+    
+    if not start_loc or not end_loc or not vehicle_tier:
         return jsonify({
             'status': 'error',
             'message': 'Missing mandatory trip parameter options.'
         }), 400
         
     try:
-        # Production transaction ID assignment
-        transaction_ref = f"TXN-{int(datetime.now(timezone.utc).timestamp())}-{current_user.id}"
+        # ⚡ PRODUCTION DATABASE INTEGRATION LAYER
+        # We now use the actual Booking model we fixed earlier!
+        new_booking = Booking(
+            customer_id=current_user.id,
+            type='passenger',
+            pickup_location=start_loc,
+            destination_location=end_loc,
+            stopover_location=stopover_loc if stopover_loc else None,
+            waiting_minutes=wait_mins,
+            vehicle_category=vehicle_tier,
+            estimated_fare=total_fare,
+            payment_method=payment_method,
+            status='Pending'
+        )
+        db.session.add(new_booking)
+        db.session.commit()
+
+        transaction_ref = f"TXN-{new_booking.id}-{current_user.id}"
         upi_deep_link = None
 
         # 💳 REAL LIVE UPI DEEP-LINK INTENT HOOK
@@ -114,25 +137,19 @@ def create_trip_dispatch():
                 'pn': merchant_name,
                 'am': f"{total_fare:.2f}",
                 'tr': transaction_ref,
-                'tn': f" KeralaRide Booking {vehicle_tier.capitalize()}",
+                'tn': f"KeralaRide Booking {vehicle_tier.capitalize()}",
                 'cu': 'INR'
             }
             # Output: upi://pay?pa=keralaride@axisbank&pn=...
             upi_deep_link = f"upi://pay?{urllib.parse.urlencode(upi_params)}"
 
-        print(f"🚖 [LIVE DISPATCH] User {current_user.id} requested a draft {vehicle_tier.upper()}. ID: {transaction_ref}")
-        if upi_deep_link:
-            print(f"🔗 [UPI DEEP LINK GENERATED] -> {upi_deep_link}")
-
-        # ⚡ Production Database Integration Layer:
-        # trip = Trip(user_id=current_user.id, txn_ref=transaction_ref, fare=total_fare, status='draft', method=payment_method)
-        # db.session.add(trip)
-        # db.session.commit()
+        print(f"🚖 [LIVE DISPATCH] User {current_user.id} requested {vehicle_tier.upper()}. ID: {transaction_ref}")
         
         return jsonify({
             'status': 'success',
-            'message': 'Ride draft created. Redirecting to confirmation...',
+            'message': 'Ride drafted successfully. Locating drivers...',
             'transaction_id': transaction_ref,
+            'booking_id': new_booking.id,
             'vehicle_tier': vehicle_tier,
             'fare': total_fare,
             'upi_intent_uri': upi_deep_link  # Sent back to open GPay/PhonePe instantly
@@ -143,7 +160,7 @@ def create_trip_dispatch():
         print(f"🚨 Trip Dispatch Model Error: {e}")
         return jsonify({
             'status': 'error',
-            'message': 'Database processing exception occurred during ride generation handles.'
+            'message': 'Database processing exception occurred during ride generation.'
         }), 500
 
 # ==========================================================================
@@ -162,9 +179,6 @@ def booking_confirmation():
         flash("Invalid tracking reference. Please initiate a new ride request.", "danger")
         return redirect(url_for('main.index'))
         
-    # In a full production environment, you would query the db for the draft trip here:
-    # trip_details = Trip.query.filter_by(txn_ref=txn_id, user_id=current_user.id).first_or_404()
-    
     return redirect(url_for('customer.dashboard'))
 
 
@@ -182,8 +196,16 @@ def update_emergency_contact():
         return redirect(url_for('main.index'))
         
     try:
-        current_user.emergency_contact_name = name
-        current_user.emergency_contact_phone = phone
+        # ⚡ CRITICAL FIX: Save to the proper EmergencyContact table, not the User table!
+        contact = EmergencyContact.query.filter_by(user_id=current_user.id).first()
+        
+        if contact:
+            contact.name = name
+            contact.phone = phone
+        else:
+            new_contact = EmergencyContact(user_id=current_user.id, name=name, phone=phone)
+            db.session.add(new_contact)
+            
         db.session.commit()
         
         flash('Trusted security parameters saved successfully!', 'success')
