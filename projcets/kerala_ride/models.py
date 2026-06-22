@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from kerala_ride import db
 
 def now_utc():
-    """Helper to return timezone-aware UTC datetime safely for SQLite."""
+    """Helper to return timezone-aware UTC datetime safely for SQLite/PostgreSQL."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
@@ -118,7 +118,7 @@ class Vehicle(db.Model):
 
 
 # ==========================================
-# 4. BOOKINGS ENGINE MODEL (FULLY CORRECTED)
+# 4. BOOKINGS ENGINE MODEL 
 # ==========================================
 class Booking(db.Model):
     __tablename__ = 'bookings'
@@ -131,11 +131,9 @@ class Booking(db.Model):
     # Core Location Parameters
     pickup_location = db.Column(db.String(255), nullable=False)
     destination_location = db.Column(db.String(255), nullable=False)
-    
-    # MULTI-STOP COLUMNS
     stopover_location = db.Column(db.String(255), nullable=True)
 
-    # HIGH-PRECISION GPS COORDINATES MAPPING
+    # GPS MAPPING
     pickup_lat = db.Column(db.Float, nullable=True)
     pickup_lng = db.Column(db.Float, nullable=True)
     stopover_lat = db.Column(db.Float, nullable=True)
@@ -143,7 +141,6 @@ class Booking(db.Model):
     dest_lat = db.Column(db.Float, nullable=True)
     dest_lng = db.Column(db.Float, nullable=True)
 
-    # HOURLY WAITING PROPERTIES
     waiting_minutes = db.Column(db.Integer, default=0)
 
     vehicle_category = db.Column(db.String(50), nullable=False)
@@ -160,11 +157,11 @@ class Booking(db.Model):
     driver_rating = db.Column(db.Float, nullable=True)
     customer_feedback = db.Column(db.Text, nullable=True)
 
-    # Goods-specific details
+    # Goods cargo parameters
     material_description = db.Column(db.Text, nullable=True)
     weight = db.Column(db.Float, nullable=True)
 
-    payment_method = db.Column(db.String(20), default='Cash')  # Cash, UPI, Google Pay, PhonePe
+    payment_method = db.Column(db.String(20), default='Cash')  # Cash, UPI
 
     created_at = db.Column(db.DateTime, default=now_utc)
     completed_at = db.Column(db.DateTime, nullable=True)
@@ -180,7 +177,6 @@ class Booking(db.Model):
 
     @property
     def display_fare(self):
-        """Returns final_fare if completed or assessed penalty, else estimated_fare."""
         return self.final_fare if self.final_fare is not None else self.estimated_fare
 
     def __repr__(self):
@@ -326,13 +322,15 @@ class IncidentReport(db.Model):
     booking_id = db.Column(db.Integer, db.ForeignKey('bookings.id'), nullable=False)
     reporter_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     reporter_role = db.Column(db.String(20), nullable=False)  # 'Customer' or 'Driver'
-    reported_user_id = db.Column(db.Integer, nullable=False)
+    reported_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     reason = db.Column(db.String(255), nullable=False)
     details = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=now_utc)
 
+    # ⚡ EXPLICIT FOREIGN KEY TRACKING (Wipes out ambiguous relationship errors)
     booking = db.relationship('Booking', backref=db.backref('incident_reports', lazy=True))
-    reporter = db.relationship('User', foreign_keys=[reporter_id])
+    reporter = db.relationship('User', foreign_keys=[reporter_id], backref='incidents_reported')
+    reported_user = db.relationship('User', foreign_keys=[reported_user_id], backref='incidents_received')
 
     def __repr__(self):
         return f'<IncidentReport {self.id} | Booking: {self.booking_id} | By: {self.reporter_role}>'
