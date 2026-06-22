@@ -189,6 +189,27 @@
         z-index: 100;
     }
 
+    /* ⏱️ NEW LIVE ETA UI BANNER */
+    .live-eta-banner {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #ffffff;
+        border: 2px solid #e2e8f0;
+        padding: 10px 20px;
+        border-radius: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        z-index: 999;
+        font-weight: 700;
+        font-size: 14px;
+        color: #1f2937;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+    }
+
     @keyframes popIn {
         0% { transform: scale(0.5); opacity: 0; }
         100% { transform: scale(1); opacity: 1; }
@@ -212,6 +233,11 @@
 
 <div class="app-home-layout">
     <div id="home-live-map" style="position: absolute; top: 0; left: 0; width: 100%; height: 55%; z-index: 1;"></div>
+
+    <div class="live-eta-banner" id="eta-tracker-banner">
+        <i class="fa-solid fa-satellite-dish" style="color: #d97706;" id="eta-icon"></i>
+        <span id="eta-text">Scanning for drivers...</span>
+    </div>
 
     <button class="floating-sos-trigger" id="sos-btn" aria-label="SOS Alert"><i class="fa-solid fa-shield-heart"></i></button>
     <button class="floating-chat-toggle" id="chat-toggle-btn" aria-label="Open Chat"><i class="fa-solid fa-comment-dots"></i></button>
@@ -258,22 +284,6 @@
     </div>
 </div>
 
-<div class="chat-drawer-container" id="chat-drawer">
-    <div class="chat-drawer-header">
-        <div style="display:flex; flex-direction:column;">
-            <h3 style="margin:0; font-size:16px;">Live Messenger</h3>
-            <span style="font-size:12px; color:var(--accent-success, #16a34a);"><i class="fa-solid fa-circle" style="font-size:8px;"></i> Secure Tunnel Active</span>
-        </div>
-        <button onclick="document.getElementById('chat-drawer').classList.remove('active');" style="background:#f1f5f9; border:none; width:32px; height:32px; border-radius:50%; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div class="chat-messages-container" id="chat-msg-box">
-        <div class="chat-bubble received">Welcome to Support channels. Coordinate directions or parameters here safely.</div>
-    </div>
-    <div class="chat-input-area">
-        <input type="text" class="form-control direct-messenger-input" id="chat-input-field" placeholder="Type message...">
-        <button class="btn btn-primary direct-messenger-btn" id="chat-send-btn"><i class="fa-solid fa-paper-plane"></i></button>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
@@ -306,6 +316,18 @@
     let currentLat = 9.9816;
     let currentLng = 76.2999;
 
+    // Haversine Math to calculate real-world distance between coordinates
+    function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+        const R = 6371; // Earth's radius in km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
     function initPreciseTrackingMap() {
         map = L.map('home-live-map', {
             zoomControl: false,
@@ -319,7 +341,14 @@
             maxZoom: 19
         }).addTo(map);
 
-        setTimeout(() => { map.invalidateSize(); }, 350);
+        // 🎯 FIX: Guarantee the map draws fully by watching the container for resizes
+        const resizeObserver = new ResizeObserver(() => {
+            map.invalidateSize();
+        });
+        resizeObserver.observe(document.getElementById('home-live-map'));
+        
+        // Safety fallback invalidate call
+        setTimeout(() => { map.invalidateSize(); }, 500);
 
         var userDotIcon = L.divIcon({
             className: 'custom-user-dot',
@@ -328,7 +357,7 @@
             iconAnchor: [8, 8]
         });
 
-        userMarker = L.marker([currentLat, currentLng], {icon: userDotIcon}).addTo(map);
+        userMarker = L.marker([currentLat, currentLng], {icon: userDotIcon, zIndexOffset: 1000}).addTo(map);
 
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(function(position) {
@@ -339,6 +368,10 @@
                 map.setView(currentPos, 14);
                 userMarker.setLatLng(currentPos);
                 
+                seedNearbyDrivers(currentLat, currentLng);
+                updateLiveBookingLinks();
+            }, function(error) {
+                // If user denies location, fallback to default and seed there
                 seedNearbyDrivers(currentLat, currentLng);
                 updateLiveBookingLinks();
             });
@@ -365,6 +398,30 @@
             let marker = L.marker([dLat, dLng], { icon: cabIcon }).addTo(map);
             simulatedDrivers.push({ marker: marker, lat: dLat, lng: dLng });
         }
+        
+        calculateClosestETA();
+    }
+
+    function calculateClosestETA() {
+        if (simulatedDrivers.length === 0) return;
+
+        let closestDistance = Infinity;
+
+        // Find the closest driver math
+        simulatedDrivers.forEach(driver => {
+            let dist = calculateDistanceKm(currentLat, currentLng, driver.lat, driver.lng);
+            if(dist < closestDistance) closestDistance = dist;
+        });
+
+        // Convert distance to ETA (Assuming ~30km/h average city speed -> 2 mins per km)
+        let etaMinutes = Math.max(1, Math.ceil(closestDistance * 2));
+        
+        const etaText = document.getElementById("eta-text");
+        const etaIcon = document.getElementById("eta-icon");
+        
+        etaText.innerText = `Nearest ${selectedTier} • ${etaMinutes} min away`;
+        etaIcon.className = "fa-solid fa-location-crosshairs";
+        etaIcon.style.color = "#064e3b";
     }
 
     function updateLiveBookingLinks() {
@@ -375,12 +432,14 @@
         }
     }
 
+    // Move drivers dynamically and recalculate ETA
     setInterval(() => {
         simulatedDrivers.forEach(d => {
             d.lat += (Math.random() - 0.5) * 0.0008;
             d.lng += (Math.random() - 0.5) * 0.0008;
             d.marker.setLatLng([d.lat, d.lng]);
         });
+        calculateClosestETA();
     }, 3000);
 
     document.addEventListener("DOMContentLoaded", function() {
@@ -395,67 +454,9 @@
                 
                 selectedTier = this.dataset.tier;
                 updateLiveBookingLinks();
+                calculateClosestETA(); // Instantly update ETA when they switch vehicle types
             });
         });
-
-        const globalSocket = (typeof socket !== 'undefined') ? socket : (window.socket ? window.socket : null);
-        const sosButton = document.getElementById("sos-btn");
-        
-        if(sosButton) {
-            sosButton.addEventListener("click", function() {
-                if(confirm("Confirm emergency SOS broadcast request?") && globalSocket) {
-                    globalSocket.emit("trigger_sos", { lat: currentLatitude, lng: currentLongitude, timestamp: new Date().toISOString() });
-                    alert("SOS indicators dispatched to tracking dashboard towers.");
-                }
-            });
-        }
-
-        const chatToggleBtn = document.getElementById("chat-toggle-btn");
-        const chatDrawer = document.getElementById("chat-drawer");
-        const chatSendBtn = document.getElementById("chat-send-btn");
-        const chatInputField = document.getElementById("chat-input-field");
-        const chatMsgBox = document.getElementById("chat-msg-box");
-
-        if(chatToggleBtn && chatDrawer) {
-            chatToggleBtn.addEventListener("click", function() {
-                chatDrawer.classList.toggle("active");
-                chatMsgBox.scrollTop = chatMsgBox.scrollHeight;
-            });
-        }
-
-        function dispatchChatMessage() {
-            const rawMessageText = chatInputField.value.trim();
-            if(rawMessageText === "") return;
-
-            const outgoingBubble = document.createElement("div");
-            outgoingBubble.className = "chat-bubble sent";
-            outgoingBubble.textContent = rawMessageText;
-            chatMsgBox.appendChild(outgoingBubble);
-            
-            if(globalSocket) {
-                globalSocket.emit("send_message", { text: rawMessageText, timestamp: new Date().toISOString() });
-            }
-
-            chatInputField.value = "";
-            chatMsgBox.scrollTop = chatMsgBox.scrollHeight;
-        }
-
-        if(chatSendBtn) chatSendBtn.addEventListener("click", dispatchChatMessage);
-        if(chatInputField) {
-            chatInputField.addEventListener("keypress", function(e) {
-                if(e.key === "Enter") dispatchChatMessage();
-            });
-        }
-
-        if(globalSocket) {
-            globalSocket.on("receive_message", function(payload) {
-                const incomingBubble = document.createElement("div");
-                incomingBubble.className = "chat-bubble received";
-                incomingBubble.textContent = payload.text;
-                chatMsgBox.appendChild(incomingBubble);
-                chatMsgBox.scrollTop = chatMsgBox.scrollHeight;
-            });
-        }
     });
 </script>
 {% endblock %}
