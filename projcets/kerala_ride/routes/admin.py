@@ -1,4 +1,3 @@
-# pyrefly: ignore [missing-import]
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response
 from flask_login import login_required, current_user
 from kerala_ride.models import db, User, Driver, Vehicle, Booking, PromoOffer, AuditLog, SOSAlert, FareConfig, SupportTicket, now_utc
